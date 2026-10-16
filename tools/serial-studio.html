@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Serial Studio · 串口解析 / 发送工具</title>
+<style>
+  :root{
+    --bg:#0b1017; --bg2:#0f1720; --pnl:#121c27; --pnl2:#16222f;
+    --line:#20303f; --line2:#2b3f52;
+    --txt:#cfe3f5; --dim:#7c93a8; --dim2:#5b7186;
+    --acc:#35d0ba; --acc2:#4aa8ff; --warn:#ffb347; --err:#ff6b6b; --ok:#57d38c;
+    --rx:#7ee787; --tx:#79c0ff; --sys:#8b98a5;
+    --mono:'Cascadia Mono','JetBrains Mono',Consolas,'DejaVu Sans Mono',monospace;
+    /* 可拖拽布局尺寸（由脚本维护并记忆到本地） */
+    --wL:326px; --wR:346px; --chartH:250px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:radial-gradient(1200px 700px at 15% -10%,#14262f 0%,var(--bg) 60%) fixed;
+    color:var(--txt); font:13px/1.5 'Segoe UI',system-ui,'Microsoft YaHei',sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* ---------- 顶栏 ---------- */
+  header{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:8px 12px; background:linear-gradient(180deg,#12202c,#0d1620);
+    border-bottom:1px solid var(--line); box-shadow:0 2px 12px #0006; z-index:5;
+  }
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.5px}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--dim2);box-shadow:0 0 0 0 #0000}
+  .brand .dot.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  .brand small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sep{width:1px;height:26px;background:var(--line2)}
+  .spacer{flex:1}
+  .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  label.f{display:flex;align-items:center;gap:5px;color:var(--dim);font-size:12px;white-space:nowrap}
+  select,input,button,textarea{font-family:inherit;font-size:12.5px;color:var(--txt)}
+  select,input[type=text],input[type=number],input[type=search],textarea{
+    background:#0c1620;border:1px solid var(--line2);border-radius:6px;padding:5px 7px;outline:none;
+  }
+  select:focus,input:focus,textarea:focus{border-color:var(--acc2);box-shadow:0 0 0 2px #4aa8ff22}
+  button{
+    background:#18293a;border:1px solid var(--line2);border-radius:6px;padding:6px 11px;cursor:pointer;
+    transition:.15s; white-space:nowrap;
+  }
+  button:hover{background:#20374b;border-color:#3d5b74}
+  button:active{transform:translateY(1px)}
+  button.pri{background:linear-gradient(180deg,#1e7f6f,#146457);border-color:#2ba28d;color:#eafff9;font-weight:600}
+  button.pri:hover{background:linear-gradient(180deg,#249b86,#17786a)}
+  button.dan{background:#3a1c22;border-color:#6d2f38;color:#ffb3b3}
+  button.dan:hover{background:#4a2229}
+  button.gho{background:#101c27}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .chip{padding:3px 8px;border-radius:20px;background:#0e1a24;border:1px solid var(--line2);color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums}
+  .chip b{color:var(--txt);font-weight:600}
+  .warnbox{background:#3a2a10;border:1px solid #6b4a15;color:#ffd08a;padding:5px 10px;border-radius:6px;font-size:12px}
+  /* ---------- 主体（栏宽 / 图表高度可拖拽，尺寸记忆在本地） ---------- */
+  main{
+    flex:1;display:grid;grid-template-columns:var(--wL) 6px minmax(300px,1fr) 6px var(--wR);
+    min-height:0;padding:6px 8px 8px;gap:0;
+  }
+  .col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0;overflow:auto;padding:4px 2px}
+  .col.mid{overflow:hidden;display:grid;grid-template-rows:minmax(140px,1fr) 6px var(--chartH);gap:0}
+  .col.mid>*{min-height:0;min-width:0}
+  .col::-webkit-scrollbar,.log::-webkit-scrollbar{width:9px;height:9px}
+  .col::-webkit-scrollbar-thumb,.log::-webkit-scrollbar-thumb{background:#26394a;border-radius:5px}
+  .col::-webkit-scrollbar-track,.log::-webkit-scrollbar-track{background:#0b141c}
+  /* ---------- 可拖拽分隔条 ---------- */
+  .sp-h,.sp-v{position:relative;touch-action:none;user-select:none}
+  .sp-h{cursor:col-resize}
+  .sp-v{cursor:row-resize}
+  .sp-h::after,.sp-v::after{content:'';position:absolute;background:#2b3f52;border-radius:2px;transition:background .15s,box-shadow .15s}
+  .sp-h::after{width:2px;top:20%;bottom:20%;left:2px;right:2px;margin:auto}
+  .sp-v::after{height:2px;left:20%;right:20%;top:2px;bottom:2px;margin:auto}
+  .sp-h:hover::after,.sp-v:hover::after,.sp-h.drag::after,.sp-v.drag::after{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+  body.dragging{cursor:col-resize;user-select:none}
+  body.dragging-v{cursor:row-resize;user-select:none}
+  .card{background:linear-gradient(180deg,var(--pnl),#101a24);border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+  .card>h2{
+    margin:0;padding:8px 11px;font-size:12.5px;font-weight:600;letter-spacing:.4px;color:#a8c4dc;
+    background:#0f1a25;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px
+  }
+  .card>h2 .tag{margin-left:auto;font-size:11px;color:var(--dim2);font-weight:400}
+  .body{padding:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field span{color:var(--dim);font-size:11.5px}
+  .field select,.field input{width:100%}
+  .hint{color:var(--dim2);font-size:11.5px;line-height:1.55}
+  /* 统计 */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .stat{background:#0d1721;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+  .stat i{display:block;color:var(--dim2);font-size:11px;font-style:normal}
+  .stat b{font-size:15px;font-variant-numeric:tabular-nums;color:#dff0ff;font-weight:600}
+  /* 报文列表 */
+  .logwrap{display:flex;flex-direction:column;min-height:0;background:var(--bg2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .logbar{display:flex;align-items:center;gap:6px;row-gap:5px;padding:7px 9px;background:#0f1a25;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .logbar>*{min-width:0}
+  .logbar input[type=search]{flex:1 1 180px;max-width:300px}
+  .logbar select{flex:0 0 auto}
+  .logbar .break{flex:0 0 100%;height:0}
+  .logbar .acts{display:flex;align-items:center;gap:6px;margin-left:auto}
+  .logbar .acts .chip{padding:3px 8px}
+  .log{flex:1;overflow:auto;font-family:var(--mono);font-size:12.5px;padding:4px 0}
+  .ln{display:flex;gap:8px;padding:2.5px 10px;border-bottom:1px solid #ffffff06;white-space:pre-wrap;word-break:break-all;align-items:baseline}
+  .ln:hover{background:#ffffff08}
+  .ln .t{color:var(--dim2);flex:none;font-size:11.5px}
+  .ln .d{flex:none;font-weight:700;font-size:11px;padding:0 5px;border-radius:4px}
+  .ln.rx .d{color:#0b1017;background:var(--rx)}
+  .ln.tx .d{color:#0b1017;background:var(--tx)}
+  .ln.sys .d{color:#0b1017;background:var(--sys)}
+  .ln.sys{color:var(--dim)}
+  .ln.tx{color:#a9d1ff}
+  .ln .m{flex:1;min-width:0}
+  .ln .extra{color:var(--acc);font-size:11.5px;flex:1 1 42%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ln.err .m{color:var(--err)}
+  .ln mark{background:#ffd34d33;color:#ffe89a;border-radius:3px;padding:0 2px}
+  .empty{color:var(--dim2);text-align:center;padding:26px 10px;font-family:'Segoe UI',sans-serif}
+  /* 无帧提示横幅 */
+  #logBanner{border-top:1px solid #5a4318;background:#241a08}
+  .bnr{padding:9px 11px;display:flex;flex-direction:column;gap:6px}
+  .bnr-t{color:#ffd08a;font-weight:600;font-size:12.5px}
+  .bnr-d{color:#e0c9a0;font-size:12px;line-height:1.55}
+  .bnr-d b{color:#ffe0a3}
+  .bnr-b{display:flex;gap:6px;flex-wrap:wrap}
+  .bnr-b button{padding:4px 10px;font-size:12px}
+  .bnr-h{color:#9c8a6a;font-size:11.5px;word-break:break-all;line-height:1.5}
+  .bnr-h code{color:#c9b992;font-family:var(--mono)}
+  /* 解析表 */
+  table.pf{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+  table.pf th,table.pf td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left}
+  table.pf th{color:var(--dim);font-weight:500;background:#0f1a25}
+  table.pf td.v{color:var(--acc);text-align:right;font-variant-numeric:tabular-nums}
+  /* 图表：高度由 --chartH 驱动（该变量由脚本维护，也可在脚本前由内联脚本提前注入） */
+  #chartCard{display:flex;flex-direction:column;min-height:140px;height:var(--chartH,250px)}
+  #chartWrap{position:relative;flex:1;min-height:120px;background:
+      linear-gradient(#ffffff08 1px,transparent 1px) 0 0/100% 25%,
+      linear-gradient(90deg,#ffffff08 1px,transparent 1px) 0 0/12.5% 100%, #0c1620}
+  #chart{width:100%;height:100%;display:block}
+  .legend{display:flex;gap:9px;flex-wrap:wrap;padding:6px 9px;border-top:1px solid var(--line);font-size:11.5px}
+  .legend label{display:flex;align-items:center;gap:4px;color:var(--dim);cursor:pointer}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  /* 发送区 */
+  #txArea{width:100%;min-height:84px;resize:vertical;font-family:var(--mono);font-size:12.5px}
+  .quick{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto}
+  .qrow{display:flex;gap:5px;align-items:center}
+  .qrow input{flex:1;min-width:0}
+  .qrow input.nm{flex:0 0 74px}
+  .hdots{display:flex;gap:5px;flex-wrap:wrap}
+  .hdots button{padding:4px 8px;font-size:11.5px}
+  .tgl{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12px;cursor:pointer;user-select:none}
+  .tgl input{accent-color:var(--acc);width:14px;height:14px}
+  footer{
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+    padding:4px 12px;border-top:1px solid var(--line);background:#0c151e;color:var(--dim2);font-size:11.5px
+  }
+  kbd{background:#182634;border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-family:var(--mono);font-size:11px;color:#a9c4dc}
+  /* 滚动条 */
+  .log::-webkit-scrollbar-track{background:#0b141c}
+  @media (max-width:1180px){
+    body{overflow:auto}
+    main{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}
+    .sp-h{display:none}
+    .col{overflow:visible}
+    .col.mid{display:block;overflow:visible}
+    .logwrap{height:46vh;min-height:260px;margin-bottom:4px}
+    #chartCard{height:290px;flex:0 0 auto;margin-top:4px}
+    #chartWrap{min-height:0}
+  }
+</style>
+<script>
+/* 在主脚本之前先把记忆的布局尺寸注入 :root，避免首帧按默认尺寸闪一下再跳变 */
+(function () {
+  try {
+    var o = JSON.parse(localStorage.getItem('serial-studio-layout') || 'null');
+    if (!o) return;
+    var s = document.documentElement.style;
+    if (typeof o.wL === 'number') s.setProperty('--wL', o.wL + 'px');
+    if (typeof o.wR === 'number') s.setProperty('--wR', o.wR + 'px');
+    if (typeof o.chartH === 'number') s.setProperty('--chartH', o.chartH + 'px');
+  } catch (e) { /* file:// 下可能禁用 localStorage，忽略 */ }
+})();
+</script>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot" id="statusDot"></span>Serial&nbsp;Studio<small>· 浏览器串口解析 / 发送工具</small></div>
+  <div class="sep"></div>
+  <div class="row">
+    <button class="pri" id="btnConnect">🔌 选择串口并连接</button>
+    <button class="gho" id="btnDisconnect" disabled>断开</button>
+    <button id="btnDemo" title="无需硬件，用内置模拟器产生数据，体验解析与波形">▶ 演示模式</button>
+  </div>
+  <div class="sep"></div>
+  <div class="row" id="portCfg">
+    <label class="f">波特率
+      <select id="baud">
+        <option>1200</option><option>2400</option><option>4800</option><option>9600</option>
+        <option selected>115200</option><option>230400</option><option>256000</option>
+        <option>460800</option><option>921600</option><option>1500000</option>
+      </select>
+    </label>
+    <label class="f">数据位<select id="databits"><option>8</option><option>7</option><option>6</option><option>5</option></select></label>
+    <label class="f">停止位<select id="stopbits"><option>1</option><option>2</option></select></label>
+    <label class="f">校验<select id="parity"><option value="none">无</option><option value="even">偶</option><option value="odd">奇</option></select></label>
+    <label class="f">流控<select id="flow"><option value="none">无</option><option value="hardware">RTS/CTS</option></select></label>
+  </div>
+  <div class="spacer"></div>
+  <div class="row">
+    <span class="chip" id="rxLed" title="原始接收字节指示灯：闪动即代表串口确实在收数据（不受切帧方式影响）">RX —</span>
+    <span class="chip" id="devChip">未连接</span>
+    <button class="gho" id="btnSaveCfg" title="把当前配置保存到浏览器本地">保存配置</button>
+    <button class="gho" id="btnLoadCfg">恢复配置</button>
+  </div>
+</header>
+
+<div id="compatWarn" class="warnbox" style="display:none;margin:8px 10px 0"></div>
+
+<main>
+  <!-- ============ 左栏 ============ -->
+  <section class="col">
+    <div class="card">
+      <h2>① 连接状态 <span class="tag" id="connTag">idle</span></h2>
+      <div class="body">
+        <div class="stats">
+          <div class="stat"><i>接收 RX</i><b id="sRx">0 B</b></div>
+          <div class="stat"><i>发送 TX</i><b id="sTx">0 B</b></div>
+          <div class="stat"><i>速率 收/发</i><b id="sRate">0 / 0 B/s</b></div>
+          <div class="stat"><i>错误 / 丢弃</i><b id="sErr">0 / 0</b></div>
+          <div class="stat"><i>帧数</i><b id="sFrames">0</b></div>
+          <div class="stat"><i>运行时间</i><b id="sUp">00:00:00</b></div>
+        </div>
+        <div class="hdots" style="margin-top:9px">
+          <button class="gho" id="btnDtr" disabled title="DTR 常用于复位 Arduino 等开发板">DTR</button>
+          <button class="gho" id="btnRts" disabled title="RTS 常用于 RESET/BOOT 控制">RTS</button>
+          <button class="gho" id="btnPulse" disabled title="拉低 DTR 200ms 再放开，用于复位开发板">脉冲复位</button>
+          <button class="dan" id="btnClear" title="清空报文与统计">清空</button>
+        </div>
+        <div class="hdots" style="margin-top:7px">
+          <button class="gho" id="btnDiag" title="一键进入排查状态：原始流直显 + 只显示接收 + 清空过滤">收不到数据？一键排查</button>
+        </div>
+        <p class="hint" style="margin:9px 0 0">
+          仅 Chromium 内核（Chrome / Edge 89+）支持 Web Serial，需通过 <b>HTTPS</b> 或 <b>file:// 直接打开本文件</b>。<br>
+          连接时浏览器会弹出系统串口选择框，插拔设备后重新点击连接即可。
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>② 帧解析器 <span class="tag">自动切帧</span></h2>
+      <div class="body" style="display:flex;flex-direction:column;gap:8px">
+        <div class="field">
+          <span>切帧方式</span>
+          <select id="pMode">
+            <option value="raw">原始流（不做切帧）</option>
+            <option value="line" selected>按行切帧（\n / \r\n）</option>
+            <option value="delim">分隔符切帧（帧头 + 帧尾）</option>
+            <option value="len">定长 / 长度字段切帧</option>
+            <option value="timeout">空闲超时切帧</option>
+          </select>
+        </div>
+        <div id="cfgLine" class="field">
+          <span>行分隔符</span>
+          <select id="lineEnd"><option value="lf">LF (\n)</option><option value="crlf">CRLF (\r\n)</option><option value="cr">CR (\r)</option><option value="any">任意 (\n 或 \r)</option></select>
+        </div>
+        <div id="cfgDelim">
+          <div class="grid2">
+            <div class="field"><span>帧头 HEX</span><input type="text" id="delimHead" value="AA 55" placeholder="如 AA 55，留空=无"></div>
+            <div class="field"><span>帧尾 HEX</span><input type="text" id="delimTail" value="" placeholder="如 0D 0A，留空=无"></div>
+          </div>
+        </div>
+        <div id="cfgLen">
+          <div class="grid2">
+            <div class="field"><span>帧头 HEX</span><input type="text" id="lenHead" value="AA 55" placeholder="留空=无"></div>
+            <div class="field"><span>长度字段位置</span><input type="number" id="lenPos" value="2" min="0" step="1"></div>
+            <div class="field"><span>长度字节数</span><select id="lenSize"><option>1</option><option>2</option></select></div>
+            <div class="field"><span>长度含义</span><select id="lenKind">
+              <option value="total" selected>整帧总长（含头尾）</option>
+              <option value="payload">数据域长度（不含头尾）</option>
+            </select></div>
+            <div class="field"><span>长度附加值 (+)</span><input type="number" id="lenExtra" value="0" step="1" title="整帧 = 长度字段位置 + 长度值 + 附加值。例：A5|LEN|SEQ|CMD|DATA|CRC8 的整帧 = 1+1+LEN+1，故填 1"></div>
+            <div class="field"><span>最大帧长 (字节)</span><input type="number" id="maxFrame" value="512" min="16" step="1" title="超过此长度的候选帧直接丢弃并重新找帧头。防止数据里的假帧头导致解析器一直等待"></div>
+            <div class="field"><span>字节序</span><select id="lenEndian"><option value="le">小端</option><option value="be">大端</option></select></div>
+          </div>
+          <p class="hint" style="margin:6px 0 0">
+            例：帧 = <b>AA 55</b> + <b>LEN</b> + 数据 + <b>CRC16</b>，LEN = 整帧字节数 → 选「整帧总长」、附加值 0；<br>
+            若 LEN 只表示数据域长度 → 选「数据域长度」，附加值填尾部字节数（如 2）。
+          </p>
+        </div>
+        <div id="cfgTimeout" class="field">
+          <span>空闲超时 (ms) <b id="timeoutVal" style="color:var(--acc)">20</b></span>
+          <input type="range" id="timeoutMs" min="2" max="500" value="20" step="1">
+        </div>
+        <label class="tgl"><input type="checkbox" id="showRawHex" checked> 同时显示原始 HEX</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>③ 字段解析 <span class="tag">按字节偏移</span></h2>
+      <div class="body" style="display:flex;flex-direction:column;gap:8px">
+        <div class="row">
+          <button class="gho" id="btnAddField" style="padding:4px 9px">+ 添加字段</button>
+          <button class="gho" id="btnPresetSensor" style="padding:4px 9px" title="AA55 头 + 4 字节float + 2 字节CRC16">示例：传感器</button>
+          <button class="gho" id="btnPresetTLV" style="padding:4px 9px" title="SOF A5 | LEN | SEQ | CMD | DATA | CRC8(poly 0x31,init 0xFF)">示例：TLV 帧</button>
+          <span class="spacer"></span>
+          <label class="tgl" title="勾选后统计与波形使用字段解析结果"><input type="checkbox" id="autoTrack" checked> 自动统计</label>
+        </div>
+        <div style="overflow:auto">
+          <table class="pf" id="fieldTable">
+            <thead><tr><th>名称</th><th>类型</th><th>偏移</th><th>长度</th><th>端序</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="field">
+          <span>端序（全局默认）</span>
+          <select id="globalEndian"><option value="le">小端 LE</option><option value="be" selected>大端 BE</option></select>
+        </div>
+        <label class="tgl"><input type="checkbox" id="chkCrc"> 校验和验证</label>
+        <div class="grid2" id="crcCfg" style="display:none">
+          <div class="field"><span>算法</span><select id="crcAlgo">
+            <option value="crc16modbus">CRC-16/MODBUS</option>
+            <option value="crc16ccitt">CRC-16/CCITT-FALSE</option>
+            <option value="crc16xmodem">CRC-16/XMODEM</option>
+            <option value="crc16ibm">CRC-16/IBM (ARC)</option>
+            <option value="crc16kermit">CRC-16/KERMIT</option>
+            <option value="crc8">CRC-8 (poly 0x07)</option>
+            <option value="crc8_31">CRC-8 (poly 0x31, init 0xFF)</option>
+            <option value="crc8_maxim">CRC-8/MAXIM (poly 0x8C 反射)</option>
+            <option value="crc8_j1850">CRC-8/SAE-J1850 (poly 0x1D)</option>
+            <option value="sum8">SUM8 累加和</option>
+            <option value="xor8">XOR8 异或校验</option>
+            <option value="lrc">LRC</option>
+          </select></div>
+          <div class="field"><span>校验范围</span><select id="crcScope">
+            <option value="all" selected>整帧（含帧头 → 校验位前）</option>
+            <option value="afterHead">帧头之后（LEN → 校验位前）</option>
+            <option value="payload">跳过首尾各 2 字节</option>
+          </select></div>
+          <div class="field"><span>校验字节位置</span><select id="crcWhere"><option value="tail">帧尾</option><option value="afterLen">长度字段之后</option></select></div>
+          <div class="field"><span>校验值端序</span><select id="crcEndian"><option value="le">小端</option><option value="be">大端</option></select></div>
+        </div>
+        <p class="hint" id="fieldHint">偏移从帧首字节算起。文本行协议可把「类型」设为 <b>ASCII 文本</b>。<br>
+          「演示模式」与默认示例的帧格式：<b>AA 55 | LEN=22 | 温度 f32 | 湿度 f32 | 电压 f32 | 电流 f32 | SEQ u8 | CRC16(LE)</b>，CRC 覆盖整帧（帧头也计入）。</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="sp-h" id="spL" title="左右拖动调整左栏宽度（双击恢复默认）"></div>
+
+  <!-- ============ 中栏 ============ -->
+  <section class="col mid">
+    <div class="logwrap">
+      <div class="logbar">
+        <strong style="color:#a8c4dc;font-size:12.5px">报文 / 日志</strong>
+        <label class="f">显示<select id="dispFmt">
+          <option value="both" selected>HEX + 文本</option>
+          <option value="hex">仅 HEX</option>
+          <option value="text">仅文本</option>
+          <option value="dec">仅十进制</option>
+        </select></label>
+        <label class="f">方向<select id="dispDir">
+          <option value="all">全部</option><option value="rx">仅接收</option><option value="tx">仅发送</option>
+        </select></label>
+        <span class="break"></span>
+        <input type="search" id="filter" placeholder="过滤：文本 / /正则/ 或 帧头HEX(AA 55)">
+        <label class="tgl"><input type="checkbox" id="pause"> 暂停刷新</label>
+        <label class="tgl"><input type="checkbox" id="autoscroll" checked> 自动滚动</label>
+        <span class="acts">
+          <span class="chip" id="shownChip">0 行</span>
+          <button class="gho" id="btnExportTxt" style="padding:5px 9px">导出 TXT</button>
+          <button class="gho" id="btnExportCsv" style="padding:5px 9px">导出 CSV</button>
+        </span>
+      </div>
+      <div class="log" id="log"><div class="empty">等待数据…<br><span style="font-size:12px">连接串口，或点右上角「演示模式」立即体验</span></div></div>
+      <div id="logBanner" style="display:none"></div>
+    </div>
+
+    <div class="sp-v" id="spLog" title="上下拖动调整日志与波形高度（双击恢复默认）"></div>
+
+    <div class="card" id="chartCard">
+      <h2>实时波形 <span class="tag" id="chartTag">暂无数据</span>
+        <span class="spacer" style="flex:1"></span>
+        <label class="f" style="margin-left:auto">窗口
+          <select id="chartWin"><option value="10">10 s</option><option value="30" selected>30 s</option><option value="60">60 s</option><option value="300">5 min</option></select>
+        </label>
+      </h2>
+      <div id="chartWrap"><canvas id="chart"></canvas></div>
+      <div class="legend" id="chartLegend"></div>
+    </div>
+  </section>
+
+  <div class="sp-h" id="spR" title="左右拖动调整右栏宽度（双击恢复默认）"></div>
+
+  <!-- ============ 右栏 ============ -->
+  <section class="col">
+    <div class="card">
+      <h2>④ 发送 <span class="tag" id="txTag">0 B</span></h2>
+      <div class="body" style="display:flex;flex-direction:column;gap:8px">
+        <textarea id="txArea" placeholder="输入要发送的内容…&#10;· 文本模式支持 \n \r \t \xNN 转义&#10;· HEX 模式示例：AA 55 01 00 0D 0A"></textarea>
+        <div class="row">
+          <label class="tgl"><input type="radio" name="txmode" id="txText" checked> 文本</label>
+          <label class="tgl"><input type="radio" name="txmode" id="txHex"> HEX</label>
+          <label class="f">结尾<select id="append">
+            <option value="none">无</option><option value="crlf">CRLF</option><option value="lf" selected>LF</option>
+            <option value="cr">CR</option><option value="nul">\0</option>
+          </select></label>
+          <label class="f">编码<select id="txEnc"><option>UTF-8</option><option>GBK</option></select></label>
+        </div>
+        <div class="row">
+          <button class="pri" id="btnSend" style="flex:1">发送 ⏎</button>
+          <label class="f">间隔<select id="interval">
+            <option value="100">100 ms</option><option value="200" selected>200 ms</option><option value="500">500 ms</option>
+            <option value="1000">1 s</option><option value="2000">2 s</option><option value="5000">5 s</option>
+          </select></label>
+          <button id="btnPeriodic">循环发送</button>
+        </div>
+        <p class="hint" id="txPreview" style="margin:0"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⑤ 快捷指令 <span class="tag">一行一条</span></h2>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px">
+        <div class="quick" id="quickList"></div>
+        <div class="row">
+          <input type="text" id="qName" class="nm" placeholder="名称" style="flex:0 0 74px">
+          <input type="text" id="qData" placeholder="内容（HEX 模式可写 AA 55 01）">
+          <button class="gho" id="btnAddQuick" style="padding:5px 9px">+</button>
+        </div>
+        <label class="tgl"><input type="checkbox" id="quickUseHex"> 快捷指令按 HEX 解析</label>
+        <p class="hint" style="margin:0">点击指令即可发送。修改后自动保存在浏览器本地。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⑥ 最新解析结果 <span class="tag" id="lastTag">—</span></h2>
+      <div class="body" style="padding:0;max-height:280px;overflow:auto">
+        <table class="pf" id="lastTable"><tbody><tr><td class="hint">尚无数据</td></tr></tbody></table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>快捷键：<kbd>Enter</kbd> 发送 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 换行 · <kbd>Ctrl</kbd>+<kbd>K</kbd> 清空 · <kbd>Ctrl</kbd>+<kbd>L</kbd> 聚焦发送框</span>
+  <span class="spacer" style="flex:1"></span>
+  <span class="chip" id="txLed" title="原始发送字节指示灯">TX —</span>
+  <span id="footerTip">Web Serial · 单文件离线运行</span>
+</footer>
+
+<script>
+/* ==========================================================================
+   通用工具
+   ========================================================================== */
+const $ = (id) => document.getElementById(id);
+const MAX_LINES = 4000, MAX_FRAMES = 6000, MAX_SERIES_POINTS = 3000;
+
+function hex(bytes, sep = ' ') {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += (i ? sep : '') + bytes[i].toString(16).padStart(2, '0').toUpperCase();
+  return s;
+}
+function hexDump(bytes) { return hex(bytes, ' '); }
+function bytesToAscii(bytes) {
+  let s = '';
+  for (const b of bytes) s += (b >= 32 && b < 127) ? String.fromCharCode(b) : '.';
+  return s;
+}
+function parseHexStr(str) {
+  const cleaned = String(str).replace(/0[xX]/g, '').replace(/[^0-9a-fA-F]/g, '');
+  if (cleaned.length % 2 !== 0) throw new Error('HEX 长度必须为偶数（每字节 2 位）');
+  const out = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(cleaned.substr(i * 2, 2), 16);
+  return out;
+}
+function unescapeText(s) {
+  return String(s).replace(/\\(x[0-9a-fA-F]{2}|[nrt0\\])/g, (m, g) => {
+    if (g[0] === 'x' || g[0] === 'X') return String.fromCharCode(parseInt(g.slice(1), 16));
+    return { n: '\n', r: '\r', t: '\t', '0': '\0', '\\': '\\' }[g] ?? m;
+  });
+}
+function bytesToText(bytes, enc) {
+  try { return new TextDecoder(enc).decode(bytes); } catch { return bytesToAscii(bytes); }
+}
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(2) + ' MB';
+}
+function ts() {
+  const d = new Date();
+  return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+}
+/* localStorage 在部分浏览器的 file:// 场景会抛异常，统一包一层 */
+function lsGet(k, dflt) { try { return localStorage.getItem(k) ?? dflt; } catch { return dflt; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
+function hms(ms) {
+  const s = Math.floor(ms / 1000);
+  return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':');
+}
+function esc(html) { return String(html).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+/* 静态内联样式，用于高亮 */
+function inlineStyle(el) {
+  const cs = getComputedStyle(el), out = [];
+  for (let i = 0; i < cs.length; i++) { const p = cs[i]; out.push(p + ':' + cs.getPropertyValue(p)); }
+  return out.join(';');
+}
+
+/* ==========================================================================
+   校验算法
+   ========================================================================== */
+const CRC16_TABLES = {};
+function crc16Table(poly, refin) {
+  const key = poly + '|' + refin;
+  if (CRC16_TABLES[key]) return CRC16_TABLES[key];
+  const t = new Uint16Array(256);
+  if (refin) {
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) c = (c & 1) ? ((c >>> 1) ^ poly) : (c >>> 1);
+      t[i] = c & 0xffff;
+    }
+  } else {
+    for (let i = 0; i < 256; i++) {
+      let c = i << 8;
+      for (let j = 0; j < 8; j++) c = (c & 0x8000) ? (((c << 1) ^ poly) & 0xffff) : ((c << 1) & 0xffff);
+      t[i] = c & 0xffff;
+    }
+  }
+  CRC16_TABLES[key] = t;
+  return t;
+}
+function crc16(bytes, { poly = 0xa001, init = 0xffff, refin = true, xorout = 0 } = {}) {
+  const t = crc16Table(poly, refin);
+  let c = init;
+  if (refin) { for (const b of bytes) c = ((c >>> 8) ^ t[(c ^ b) & 0xff]) & 0xffff; }
+  else { for (const b of bytes) c = (((c << 8) ^ t[((c >>> 8) ^ b) & 0xff]) & 0xffff); }
+  return (c ^ xorout) & 0xffff;
+}
+const CRC8_TABLES = {};
+function crc8(bytes, poly = 0x07, init = 0x00, xorout = 0x00, refin = false) {
+  const key = poly + '|' + refin;
+  let t = CRC8_TABLES[key];
+  if (!t) {
+    t = new Uint8Array(256);
+    if (refin) { for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? ((c >>> 1) ^ poly) : (c >>> 1); t[i] = c & 0xff; } }
+    else { for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 0x80) ? (((c << 1) ^ poly) & 0xff) : ((c << 1) & 0xff); t[i] = c & 0xff; } }
+    CRC8_TABLES[key] = t;
+  }
+  let c = init & 0xff;
+  for (const b of bytes) c = t[(c ^ b) & 0xff];
+  return (c ^ xorout) & 0xff;
+}
+function sum8(bytes) { let s = 0; for (const b of bytes) s = (s + b) & 0xff; return s; }
+function xor8(bytes) { let s = 0; for (const b of bytes) s ^= b; return s; }
+const CRC_ALGOS = {
+  crc16modbus:  { name: 'CRC-16/MODBUS',      size: 2, fn: b => crc16(b, { poly: 0xa001, init: 0xffff, refin: true,  xorout: 0 }) },
+  crc16ccitt:   { name: 'CRC-16/CCITT-FALSE', size: 2, fn: b => crc16(b, { poly: 0x1021, init: 0xffff, refin: false, xorout: 0 }) },
+  crc16xmodem:  { name: 'CRC-16/XMODEM',      size: 2, fn: b => crc16(b, { poly: 0x1021, init: 0x0000, refin: false, xorout: 0 }) },
+  crc16ibm:     { name: 'CRC-16/IBM(ARC)',    size: 2, fn: b => crc16(b, { poly: 0xa001, init: 0x0000, refin: true,  xorout: 0 }) },
+  crc16kermit:  { name: 'CRC-16/KERMIT',      size: 2, fn: b => crc16(b, { poly: 0x8408, init: 0x0000, refin: true,  xorout: 0 }) },
+  crc8:         { name: 'CRC-8 (poly 0x07)',        size: 1, fn: b => crc8(b, 0x07, 0x00, 0x00, false) },
+  crc8_31:      { name: 'CRC-8 (poly 0x31, init 0xFF)', size: 1, fn: b => crc8(b, 0x31, 0xFF, 0x00, false) },
+  crc8_maxim:   { name: 'CRC-8/MAXIM (poly 0x8C)',  size: 1, fn: b => crc8(b, 0x8C, 0x00, 0x00, true) },
+  crc8_j1850:   { name: 'CRC-8/SAE-J1850 (poly 0x1D)', size: 1, fn: b => crc8(b, 0x1D, 0xFF, 0xFF, false) },
+  sum8:         { name: 'SUM8',               size: 1, fn: b => sum8(b) },
+  xor8:         { name: 'XOR8',               size: 1, fn: b => xor8(b) },
+  lrc:          { name: 'LRC',                size: 1, fn: b => ((256 - sum8(b)) & 0xff) },
+};
+
+/* ==========================================================================
+   字节解码
+   ========================================================================== */
+function getUint(bytes, off, len, endian) {
+  let v = 0;
+  if (endian === 'le') for (let i = len - 1; i >= 0; i--) v = v * 256 + bytes[off + i];
+  else for (let i = 0; i < len; i++) v = v * 256 + bytes[off + i];
+  return v;
+}
+function getInt(bytes, off, len, endian) {
+  const v = getUint(bytes, off, len, endian);
+  const bits = len * 8;
+  const max = Math.pow(2, bits);
+  return v >= max / 2 ? v - max : v;
+}
+function bcdToStr(bytes) {
+  let s = '';
+  for (const b of bytes) s += ((b >> 4) & 0xf) + '' + (b & 0xf);
+  return s;
+}
+const FIELD_TYPES = {
+  u8:  { label: 'UINT8',  len: 1, read: (b, o, e) => getUint(b, o, 1, e), num: true },
+  i8:  { label: 'INT8',   len: 1, read: (b, o, e) => getInt(b, o, 1, e),  num: true },
+  u16: { label: 'UINT16', len: 2, read: (b, o, e) => getUint(b, o, 2, e), num: true },
+  i16: { label: 'INT16',  len: 2, read: (b, o, e) => getInt(b, o, 2, e),  num: true },
+  u32: { label: 'UINT32', len: 4, read: (b, o, e) => getUint(b, o, 4, e), num: true },
+  i32: { label: 'INT32',  len: 4, read: (b, o, e) => getInt(b, o, 4, e),  num: true },
+  f32: { label: 'FLOAT32', len: 4, read: (b, o, e) => {
+      const dv = new DataView(Uint8Array.from(b.slice(o, o + 4)).buffer);
+      return dv.getFloat32(0, e === 'le');
+    }, num: true },
+  f64: { label: 'FLOAT64', len: 8, read: (b, o, e) => {
+      const dv = new DataView(Uint8Array.from(b.slice(o, o + 8)).buffer);
+      return dv.getFloat64(0, e === 'le');
+    }, num: true },
+  bits: { label: 'BITS(位域)', len: 1, read: (b, o) => b[o].toString(2).padStart(8, '0'), num: false },
+  hex:  { label: 'HEX 字节',  len: 1, read: (b, o, l) => hex(b.slice(o, o + l)), num: false, variable: true },
+  ascii:{ label: 'ASCII 文本', len: 1, read: (b, o, l) => bytesToText(b.slice(o, o + l), 'utf-8'), num: false, variable: true },
+  bcd:  { label: 'BCD',       len: 1, read: (b, o, l) => bcdToStr(b.slice(o, o + l)), num: false, variable: true },
+};
+
+/* ==========================================================================
+   应用状态
+   ========================================================================== */
+const S = {
+  port: null, reader: null, writer: null, connected: false, demo: false,
+  reading: false, closing: false,
+  rxBytes: 0, txBytes: 0, errCount: 0, dropCount: 0, frameCount: 0,
+  startedAt: 0, rateWindow: [],
+  lastRxAt: 0, stallWarned: false, readFail: 0, writePending: false, parserStalled: false,
+  lines: [],           // {dir, bytes, text, time, extra, err}
+  frames: [],          // 解析后的帧记录
+  series: new Map(),   // name -> [{t, v}]
+  seriesHidden: new Set(),
+  pendingRaw: [],      // 待刷新到 DOM 的行
+  lineEls: [],
+  filterRe: null,
+  sendBuf: [],
+  lastFrame: null,
+  autoScroll: true,
+  timeouts: new Map(),
+  flushQueued: false,
+  counterBase: 0,
+};
+const fieldDefs = [];   // {name,type,off,len,endian}
+
+/* ==========================================================================
+   配置持久化
+   ========================================================================== */
+const CFG_KEYS = ['baud','databits','stopbits','parity','flow','pMode','lineEnd','delimHead','delimTail',
+  'lenHead','lenPos','lenSize','lenKind','lenExtra','lenEndian','maxFrame','timeoutMs','showRawHex',
+  'dispFmt','dispDir','globalEndian','chkCrc','crcAlgo','crcScope','crcWhere','crcEndian','txEnc','append','interval','quickUseHex','chartWin'];
+function saveCfg() {
+  const o = { fields: fieldDefs, quick: quickItems };
+  for (const k of CFG_KEYS) { const el = $(k); if (el) o[k] = el.type === 'checkbox' ? el.checked : el.value; }
+  if (lsSet('serial-studio-cfg', JSON.stringify(o))) toast('配置已保存到本地');
+  else toast('保存失败：浏览器禁止本地存储（file:// 可能受限）', true);
+}
+function loadCfg(silent) {
+  let o = null;
+  try { o = JSON.parse(lsGet('serial-studio-cfg', 'null')); } catch {}
+  if (!o) { if (!silent) toast('没有已保存的配置', true); return; }
+  for (const k of CFG_KEYS) {
+    const el = $(k); if (!el || o[k] === undefined) continue;
+    if (el.type === 'checkbox') el.checked = !!o[k]; else el.value = o[k];
+  }
+  if (Array.isArray(o.fields)) { fieldDefs.length = 0; o.fields.forEach(f => fieldDefs.push(f)); }
+  if (Array.isArray(o.quick) && o.quick.length) { quickItems = o.quick; }
+  renderFields(); renderQuick(); syncParserUI(); updateTxPreview();
+  if (!silent) toast('配置已恢复');
+}
+
+/* ==========================================================================
+   toast
+   ========================================================================== */
+let toastTimer = null;
+function toast(msg, isErr) {
+  let el = $('toastBox');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'toastBox';
+    el.style.cssText = 'position:fixed;right:16px;bottom:44px;z-index:99;display:flex;flex-direction:column;gap:6px;align-items:flex-end';
+    document.body.appendChild(el);
+  }
+  const d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = 'padding:8px 13px;border-radius:8px;font-size:12.5px;box-shadow:0 6px 20px #0008;border:1px solid ' +
+    (isErr ? '#6d2f38;background:#3a1c22;color:#ffb3b3' : '#2ba28d;background:#123a33;color:#c8fff2');
+  el.appendChild(d);
+  setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; setTimeout(() => d.remove(), 320); }, 2400);
+}
+
+/* ==========================================================================
+   日志显示
+   ========================================================================== */
+function pushLine(dir, bytes, text, extra, err) {
+  const rec = { dir, bytes: Uint8Array.from(bytes || []), text: text ?? '', extra: extra || '', err: !!err, time: ts() };
+  S.lines.push(rec);
+  if (S.lines.length > MAX_LINES) S.lines.splice(0, S.lines.length - MAX_LINES);
+  if (!S.pause) { S.pendingRaw.push(rec); scheduleFlush(); }
+}
+function scheduleFlush() {
+  if (S.flushQueued) return;
+  S.flushQueued = true;
+  requestAnimationFrame(flushLines);
+}
+function lineMatches(rec) {
+  const dir = $('dispDir').value;
+  if (dir === 'rx' && rec.dir !== 'rx') return false;
+  if (dir === 'tx' && rec.dir !== 'tx') return false;
+  const f = $('filter').value.trim();
+  if (!f) return true;
+  if (S.filterRe) {
+    const re = new RegExp(S.filterRe.source, 'i');
+    return re.test(rec.text) || re.test(hex(rec.bytes)) || re.test(rec.extra);
+  }
+  const low = f.toLowerCase();
+  return rec.text.toLowerCase().includes(low) || hex(rec.bytes).toLowerCase().includes(low) || rec.extra.toLowerCase().includes(low);
+}
+function fmtRec(rec) {
+  const fmt = $('dispFmt').value;
+  const b = rec.bytes;
+  if (fmt === 'hex') return hex(b) || '(空)';
+  if (fmt === 'dec') return Array.from(b).join(' ');
+  if (fmt === 'text') return rec.text === '' ? bytesToAscii(b) : rec.text;
+  const t = (rec.text === '' || rec.text === undefined) ? bytesToAscii(b) : rec.text;
+  const printable = t.replace(/[\r\n\t]/g, m => ({ '\r': '\\r', '\n': '\\n', '\t': '\\t' }[m]));
+  const h = hex(b);
+  if (!b.length) return printable;
+  return h + '   |  ' + printable;
+}
+function renderLineEl(rec) {
+  const div = document.createElement('div');
+  div.className = 'ln ' + rec.dir + (rec.err ? ' err' : '');
+  const label = { rx: 'RX', tx: 'TX', sys: 'SYS' }[rec.dir] || rec.dir.toUpperCase();
+  const m = fmtRec(rec);
+  let html = esc(m);
+  const f = $('filter').value.trim();
+  if (S.filterRe) {
+    try { html = esc(m).replace(new RegExp(S.filterRe.source, 'gi'), s => '<mark>' + s + '</mark>'); } catch {}
+  } else if (f && !f.startsWith('/')) {
+    const idx = m.toLowerCase().indexOf(f.toLowerCase());
+    if (idx >= 0) html = esc(m.slice(0, idx)) + '<mark>' + esc(m.slice(idx, idx + f.length)) + '</mark>' + esc(m.slice(idx + f.length));
+  }
+  div.innerHTML = `<span class="t">${rec.time}</span><span class="d">${label}</span><span class="m">${html}</span>`
+    + (rec.extra ? `<span class="extra" title="${esc(rec.extra)}">${esc(rec.extra)}</span>` : '');
+  return div;
+}
+function flushLines() {
+  S.flushQueued = false;
+  const log = $('log');
+  const batch = S.pendingRaw.splice(0, S.pendingRaw.length);
+  if (batch.length) {
+    const empty = log.querySelector('.empty');
+    if (empty) empty.remove();
+    const frag = document.createDocumentFragment();
+    let added = 0;
+    for (const rec of batch) {
+      if (!lineMatches(rec)) continue;
+      frag.appendChild(renderLineEl(rec)); added++;
+    }
+    if (added) log.appendChild(frag);
+    while (log.childElementCount > MAX_LINES) log.removeChild(log.firstElementChild);
+    if (S.autoScroll && added) log.scrollTop = log.scrollHeight;
+    $('shownChip').textContent = log.childElementCount + ' 行';
+  }
+}
+function rerrLines() {
+  S.pendingRaw = [];
+  const log = $('log');
+  log.innerHTML = '';
+  const keep = S.lines.filter(lineMatches);
+  const frag = document.createDocumentFragment();
+  for (const rec of keep) frag.appendChild(renderLineEl(rec));
+  log.appendChild(frag);
+  if (!keep.length) log.innerHTML = '<div class="empty">没有匹配的报文</div>';
+  $('shownChip').textContent = log.childElementCount + ' 行';
+  if (S.autoScroll) log.scrollTop = log.scrollHeight;
+}
+
+/* ==========================================================================
+   帧解析器
+   ========================================================================== */
+/* ---------- 帧头自动识别 ---------- */
+const HEXB = new Uint8Array(4096);      // 原始字节环形缓冲，用于分析协议特征
+let HEXB_N = 0, HEXB_P = 0;
+function hexBytesFeed(bytes) {
+  for (let i = 0; i < bytes.length; i++) { HEXB[HEXB_P] = bytes[i]; HEXB_P = (HEXB_P + 1) % HEXB.length; if (HEXB_N < HEXB.length) HEXB_N++; }
+}
+function hexBytesGet(max) {
+  const n = Math.min(HEXB_N, max || HEXB.length);
+  const start = (HEXB_P - n + HEXB.length) % HEXB.length;
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) out[i] = HEXB[(start + i) % HEXB.length];
+  return out;
+}
+function hexBytesReset() { HEXB_N = 0; HEXB_P = 0; }
+/* 猜测帧头：找重复出现且间距稳定的 2 字节模式（收不到可读帧时的兜底手段） */
+function analyzeHead(bytes) {
+  const n = Math.min(bytes.length, 4096);
+  const cands = new Map();
+  for (let i = 0; i + 1 < n; i++) {
+    const k = (bytes[i] << 8) | bytes[i + 1];
+    if (!cands.has(k)) cands.set(k, []);
+    const a = cands.get(k);
+    if (a.length < 16) a.push(i);
+  }
+  let best = null;
+  for (const [k, pos] of cands) {
+    if (pos.length < 2) continue;
+    const gaps = [];
+    for (let i = 1; i < pos.length; i++) gaps.push(pos[i] - pos[i - 1]);
+    const ok = gaps.filter(g => g >= 4 && g <= 512);
+    if (ok.length < 2) continue;                                  // 至少要稳定重复 3 次
+    const avg = ok.reduce((s, x) => s + x, 0) / ok.length;
+    const dev = Math.sqrt(ok.reduce((s, x) => s + (x - avg) * (x - avg), 0) / ok.length);
+    if (dev > 2) continue;                                        // 间距必须稳定
+    const first = pos[0];
+    if (first > 1024) continue;
+    const score = ok.length * 3 + Math.round(avg) - first * 0.01;
+    if (!best || score > best.score) best = { head: [k >> 8, k & 0xff], first, score, frames: pos.length, len: Math.round(avg) };
+  }
+  return best;
+}
+function hexBytesHex(max) {
+  const b = hexBytesGet(max);
+  return hex(b);
+}
+/* 解析成功落帧：重置「无帧」看门狗与提示 */
+function noteFrameOk() {
+  S.frameCount > 0 && (S.parserStalled = false);
+}
+
+function makeParser() {
+  return { buf: [], mode: null, head: null, tail: null, lastByteAt: 0 };
+}
+const P = makeParser();
+
+function resetParser() {
+  for (const t of S.timeouts.values()) clearTimeout(t);   // 先取消挂起的空闲超时，避免残留定时器
+  S.timeouts.clear();
+  P.buf = []; P.lastByteAt = 0;
+}
+function parserCfg() {
+  const mode = $('pMode').value;
+  let head = null, tail = null;
+  try {
+    if (mode === 'delim') {
+      head = $('delimHead').value.trim() ? Array.from(parseHexStr($('delimHead').value)) : null;
+      tail = $('delimTail').value.trim() ? Array.from(parseHexStr($('delimTail').value)) : null;
+    } else if (mode === 'len') {
+      head = $('lenHead').value.trim() ? Array.from(parseHexStr($('lenHead').value)) : null;
+    }
+  } catch (e) { pushLine('sys', [], '解析器配置错误：' + e.message, '', true); }
+  return {
+    mode, head, tail,
+    lineEnd: $('lineEnd').value,
+    lenPos: +$('lenPos').value || 0,
+    lenSize: +$('lenSize').value || 1,
+    lenKind: $('lenKind').value,
+    lenExtra: +$('lenExtra').value || 0,
+    lenEndian: $('lenEndian').value,
+    maxFrame: Math.max(16, +$('maxFrame').value || 512),
+    crcAlgo: $('crcAlgo').value,
+    crcSize: (CRC_ALGOS[$('crcAlgo').value] || { size: 1 }).size,
+    crcScope: $('crcScope').value,
+    crcEndian: $('crcEndian').value,
+    crcWhere: $('crcWhere').value,
+    timeoutMs: +$('timeoutMs').value || 20,
+    showRawHex: $('showRawHex').checked,
+  };
+}
+function indexOfSeq(buf, pat, from) {
+  if (!pat || !pat.length) return -1;
+  outer: for (let i = from; i <= buf.length - pat.length; i++) {
+    for (let j = 0; j < pat.length; j++) if (buf[i + j] !== pat[j]) continue outer;
+    return i;
+  }
+  return -1;
+}
+/* 把原始字节流切成帧 */
+function feedParser(chunk) {
+  const c = parserCfg();
+  if (c.mode === 'raw') { handleFrame(Uint8Array.from(chunk), c); return; }
+  for (const b of chunk) P.buf.push(b);
+
+  if (c.mode === 'timeout') { armTimeout(c); return; }
+
+  if (c.mode === 'line') {
+    let start = 0;
+    for (let i = 0; i < P.buf.length; i++) {
+      const b = P.buf[i];
+      const isLF = b === 0x0a, isCR = b === 0x0d;
+      let isEnd = false, consume = 1;
+      if (c.lineEnd === 'lf') isEnd = isLF;
+      else if (c.lineEnd === 'cr') isEnd = isCR;
+      else if (c.lineEnd === 'crlf') { if (isCR && P.buf[i + 1] === 0x0a) { isEnd = true; consume = 2; } }
+      else isEnd = isLF || isCR;
+      if (isEnd) {
+        if (c.lineEnd === 'crlf' && isCR && P.buf[i + 1] === undefined) break;  // 等下一个字节
+        const frame = P.buf.slice(start, i);          // 行分隔符不计入帧内容
+        if (c.lineEnd === 'any' && isCR && P.buf[i + 1] === 0x0a) consume = 2;
+        start = i + consume;
+        if (frame.length) handleFrame(Uint8Array.from(frame), c);
+        i = start - 1;
+      }
+    }
+    P.buf = P.buf.slice(start);
+    if (P.buf.length > 65536) { P.buf = []; S.dropCount++; }
+    return;
+  }
+
+  if (c.mode === 'delim') {
+    let guard = 0;
+    while (guard++ < 5000) {
+      if (c.head && c.head.length) {
+        const hi = indexOfSeq(P.buf, c.head, 0);
+        if (hi < 0) { if (P.buf.length > c.head.length) { S.dropCount += P.buf.length - c.head.length + 1; P.buf = P.buf.slice(-(c.head.length - 1)); } return; }
+        if (hi > 0) { S.dropCount += hi; P.buf = P.buf.slice(hi); }
+      }
+      const searchFrom = (c.head ? c.head.length : 0);
+      let end = -1, endLen = 0;
+      if (c.tail && c.tail.length) {
+        const ti = indexOfSeq(P.buf, c.tail, searchFrom);
+        if (ti < 0) { if (P.buf.length > 1 << 20) { S.dropCount += P.buf.length; P.buf = []; } return; }
+        end = ti; endLen = c.tail.length;
+      } else {
+        end = P.buf.length; endLen = 0;
+        if (!c.head) { /* 无头无尾，全部当作一帧 */ }
+      }
+      const frame = P.buf.slice(0, end + endLen);
+      P.buf = P.buf.slice(end + endLen);
+      if (frame.length) handleFrame(Uint8Array.from(frame), c);
+      if (!c.tail || !c.tail.length) return;
+    }
+    return;
+  }
+
+  if (c.mode === 'len') {
+    let guard = 0;
+    while (guard++ < 5000) {
+      if (c.head && c.head.length) {
+        const hi = indexOfSeq(P.buf, c.head, 0);
+        if (hi < 0) { if (P.buf.length >= c.head.length) { S.dropCount += P.buf.length - c.head.length + 1; P.buf = P.buf.slice(-(c.head.length - 1)); } return; }
+        if (hi > 0) { S.dropCount += hi; P.buf = P.buf.slice(hi); }
+      }
+      /* 帧内统一坐标：解析器总是让 P.buf[0] 对齐到帧首（SOF），
+         因此长度字段位置 = 帧内绝对偏移（与下方「字段解析」的偏移含义一致） */
+      const lp = c.lenPos;
+      if (P.buf.length < lp + c.lenSize) return;
+      const len = getUint(P.buf, lp, c.lenSize, c.lenEndian);
+      const total = c.lenKind === 'total' ? len + c.lenExtra : lp + c.lenSize + len + c.lenExtra;
+      /* 防护：帧长上界。数据里偶然出现的帧头字节会算出一个很大的长度，
+         若不设上限，解析器会一直等这个永远凑不齐的假帧 */
+      if (!isFinite(total) || total <= 0 || total > c.maxFrame) {
+        if (c.head && c.head.length) { S.dropCount++; P.buf = P.buf.slice(1); continue; }
+        return;
+      }
+      if (P.buf.length < total) return;
+      const cand = P.buf.slice(0, total);
+      P.buf = P.buf.slice(total);
+      handleFrame(Uint8Array.from(cand), c);
+      if (!c.head || !c.head.length) return;   // 无帧头时无法重同步，一帧一帧来
+    }
+  }
+}
+function armTimeout(c) {
+  const key = 'idle';
+  const old = S.timeouts.get(key);
+  if (old) clearTimeout(old);
+  S.timeouts.set(key, setTimeout(() => {
+    S.timeouts.delete(key);
+    if (P.buf.length) { const f = P.buf.slice(); P.buf = []; handleFrame(Uint8Array.from(f), c); }
+  }, c.timeoutMs));
+}
+/* ==========================================================================
+   字段解析 + 校验
+   ========================================================================== */
+function parseFrameFields(bytes, c) {
+  const result = { fields: [], values: {}, crcOk: null, crcInfo: '' };
+  const endian = $('globalEndian').value;
+  /* 变长字段（HEX/ASCII/BCD）若长度为 0，则自动延伸到「校验位之前」，
+     便于表达 TLV 这类载荷长度由 LEN 字段决定的协议 */
+  const crcAtTail = $('chkCrc').checked && $('crcWhere').value === 'tail';
+  const crcLen = crcAtTail ? (CRC_ALGOS[$('crcAlgo').value] || { size: 1 }).size : 0;
+  const varEnd = Math.max(0, bytes.length - crcLen);
+  for (const f of fieldDefs) {
+    const t = FIELD_TYPES[f.type] || FIELD_TYPES.hex;
+    const len = (f.type === 'ascii' || f.type === 'hex' || f.type === 'bcd')
+      ? (f.len > 0 ? f.len : Math.max(0, varEnd - (f.off | 0)))
+      : t.len;
+    const off = f.off | 0;
+    if (off + len > bytes.length || len <= 0) { result.fields.push({ name: f.name || t.label, value: '—', miss: true }); continue; }
+    let v;
+    /* 读取签名统一为 read(bytes, offset, len)：变长类型只用到前三参，端序与它们无关 */
+    const u8 = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes);
+    try { v = t.read(u8, off, len, f.endian || endian, len); } catch (e) { v = 'err'; }
+    const shown = typeof v === 'number' ? (Number.isInteger(v) ? v : +v.toFixed(4)) : v;
+    result.fields.push({ name: f.name || t.label, value: shown, type: f.type, off, len });
+    if (t.num) result.values[f.name || t.label] = +v;
+  }
+  /* 校验 */
+  if ($('chkCrc').checked && bytes.length) {
+    const algo = CRC_ALGOS[$('crcAlgo').value];
+    const size = algo.size;
+    const scope = $('crcScope').value;
+    let calcBytes, expectBytes;
+    if ($('crcWhere').value === 'tail') {
+      if (bytes.length <= size) { result.crcOk = false; result.crcInfo = '帧太短'; }
+      else {
+        expectBytes = bytes.slice(bytes.length - size);
+        const hl = cparserHeadLen(c);
+        if (scope === 'all') calcBytes = bytes.slice(0, bytes.length - size);
+        else if (scope === 'afterHead') calcBytes = bytes.slice(hl, bytes.length - size);
+        else calcBytes = bytes.slice(2, Math.max(2, bytes.length - 2 - size));
+      }
+    } else {
+      const hl = cparserHeadLen(c) || (+$('lenPos').value || 0) + (+$('lenSize').value || 1);
+      if (bytes.length <= hl + size) { result.crcOk = false; result.crcInfo = '帧太短'; }
+      else {
+        expectBytes = bytes.slice(hl, hl + size);
+        calcBytes = bytes.slice(0, hl);
+      }
+    }
+    if (result.crcOk !== false) {
+      const calc = algo.fn(Array.from(calcBytes));
+      const be = $('crcEndian').value === 'be';
+      const got = getUint(Array.from(expectBytes), 0, size, be ? 'be' : 'le');
+      result.crcOk = (calc === got);
+      result.crcInfo = `${algo.name} 计算=${calc.toString(16).toUpperCase().padStart(size * 2, '0')} 报文=${got.toString(16).toUpperCase().padStart(size * 2, '0')}`;
+    }
+  }
+  return result;
+}
+function cparserHeadLen(c) {
+  if (c && c.head) return c.head.length;
+  const v = $('lenHead') ? $('lenHead').value.trim() : '';
+  if (!v) return 0;
+  try { return parseHexStr(v).length; } catch { return 0; }
+}
+
+/* ==========================================================================
+   帧落地：显示、统计、波形
+   ========================================================================== */
+function handleFrame(bytes, c) {
+  S.frameCount++;
+  noteFrameOk();                       // 有帧了：撤销「无帧」提示
+  const parsed = parseFrameFields(bytes, c);
+  S.lastFrame = { bytes, parsed, time: ts() };
+
+  /* 文本展示 */
+  let text = bytesToText(bytes, 'utf-8').replace(/\u0000/g, '');
+  let extra = parsed.fields.map(f => `${f.name}=${f.value}`).join('  ');
+  if (parsed.crcOk === false) extra += '   ✗ 校验失败';
+  else if (parsed.crcOk === true) extra += '   ✓ 校验通过';
+
+  /* 入列显示 */
+  const rec = {
+    dir: 'rx', bytes, time: ts(),
+    text: (c.mode === 'line' || c.mode === 'timeout') ? text : bytesToAscii(bytes),
+    extra, err: parsed.crcOk === false,
+  };
+  S.lines.push(rec);
+  S.frames.push({ t: Date.now(), bytes, fields: parsed.values });
+  if (S.frames.length > MAX_FRAMES) S.frames.splice(0, S.frames.length - MAX_FRAMES);
+  if (S.lines.length > MAX_LINES) S.lines.splice(0, S.lines.length - MAX_LINES);
+  if (!S.pause) { S.pendingRaw.push(rec); scheduleFlush(); }
+
+  /* 波形数据 */
+  if ($('autoTrack').checked) {
+    const t = Date.now();
+    for (const [name, v] of Object.entries(parsed.values)) {
+      if (!isFinite(v)) continue;
+      let arr = S.series.get(name);
+      if (!arr) { arr = []; S.series.set(name, arr); }
+      arr.push({ t, v });
+      if (arr.length > MAX_SERIES_POINTS) arr.splice(0, arr.length - MAX_SERIES_POINTS);
+    }
+    if (Object.keys(parsed.values).length) { renderLegend(); drawChart(); }
+  }
+  renderLastTable(parsed, bytes);
+}
+function renderLastTable(parsed, bytes) {
+  const tb = $('lastTable').querySelector('tbody');
+  let html = '';
+  html += `<tr><th>原始 HEX</th><td class="v" style="color:#9fb8cd;text-align:left;word-break:break-all">${esc(hex(bytes)) || '—'}</td></tr>`;
+  html += `<tr><th>长度</th><td class="v">${bytes.length} B</td></tr>`;
+  if (parsed.fields.length) {
+    for (const f of parsed.fields) {
+      html += `<tr><th>${esc(f.name)}${f.type ? `<span style="color:#5b7186;font-size:10.5px"> ${(FIELD_TYPES[f.type] || {}).label || ''}</span>` : ''}</th>`
+        + `<td class="v">${f.miss ? '—' : esc(f.value)}</td></tr>`;
+    }
+  }
+  if (parsed.crcInfo) html += `<tr><th>校验</th><td class="v" style="color:${parsed.crcOk ? 'var(--ok)' : 'var(--err)'}">${parsed.crcOk ? '✓ 通过' : '✗ 失败'} <span style="color:#5b7186;font-size:11px">${esc(parsed.crcInfo)}</span></td></tr>`;
+  tb.innerHTML = html;
+  $('lastTag').textContent = ts();
+}
+
+/* ==========================================================================
+   波形绘制
+   ========================================================================== */
+const PALETTE = ['#35d0ba', '#4aa8ff', '#ffb347', '#ff7b9c', '#b18cff', '#7ee787', '#ffd34d', '#66d9ff'];
+function seriesColor(i) { return PALETTE[i % PALETTE.length]; }
+function renderLegend() {
+  const el = $('chartLegend');
+  const names = [...S.series.keys()];
+  if (!names.length) { el.innerHTML = '<span style="color:var(--dim2)">字段解析出数值后自动显示曲线</span>'; $('chartTag').textContent = '暂无数据'; return; }
+  el.innerHTML = names.map((n, i) => {
+    const last = S.series.get(n).slice(-1)[0];
+    return `<label><input type="checkbox" data-s="${esc(n)}" ${S.seriesHidden.has(n) ? '' : 'checked'}>`
+      + `<i style="background:${seriesColor(i)}"></i>${esc(n)} <b style="color:#cfe3f5">${last ? last.v : ''}</b></label>`;
+  }).join('');
+  el.querySelectorAll('input[data-s]').forEach(cb => cb.addEventListener('change', () => {
+    const n = cb.getAttribute('data-s');
+    if (cb.checked) S.seriesHidden.delete(n); else S.seriesHidden.add(n);
+    drawChart();
+  }));
+  $('chartTag').textContent = names.length + ' 条曲线 · ' + S.frames.length + ' 帧';
+}
+function drawChart() {
+  const cv = $('chart'), wrap = $('chartWrap');
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const pad = { l: 46, r: 8, t: 10, b: 16 };
+  const win = (+$('chartWin').value) * 1000;
+  const now = Date.now();
+  const t0 = now - win;
+  const names = [...S.series.keys()].filter(n => !S.seriesHidden.has(n));
+  const all = names.length ? names : [...S.series.keys()];
+  let vmin = Infinity, vmax = -Infinity;
+  for (const n of all) for (const p of S.series.get(n)) { if (p.t < t0) continue; if (p.v < vmin) vmin = p.v; if (p.v > vmax) vmax = p.v; }
+  if (!isFinite(vmin)) { vmin = 0; vmax = 1; }
+  if (vmax - vmin < 1e-9) { vmax += 1; vmin -= 1; }
+  const padV = (vmax - vmin) * 0.08; vmin -= padV; vmax += padV;
+  const X = t => pad.l + (t - t0) / win * (W - pad.l - pad.r);
+  const Y = v => H - pad.b - (v - vmin) / (vmax - vmin) * (H - pad.t - pad.b);
+  /* 网格 + 轴 */
+  g.strokeStyle = '#ffffff10'; g.fillStyle = '#5b7186'; g.font = '10px ' + getComputedStyle(document.body).fontFamily;
+  g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const v = vmin + (vmax - vmin) * i / 4, y = Y(v);
+    g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke();
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.fillText(Math.abs(v) >= 1000 ? v.toFixed(0) : v.toFixed(Math.abs(v) < 10 ? 2 : 1), pad.l - 5, y);
+  }
+  for (let i = 0; i <= 6; i++) {
+    const x = pad.l + (W - pad.l - pad.r) * i / 6;
+    g.strokeStyle = '#ffffff08'; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke();
+    g.fillStyle = '#5b7186'; g.textAlign = i === 0 ? 'left' : (i === 6 ? 'right' : 'center'); g.textBaseline = 'top';
+    g.fillText('-' + Math.round((win - win * i / 6) / 1000) + 's', x, H - pad.b + 2);
+  }
+  /* 曲线 */
+  names.forEach((n, idx) => {
+    const arr = S.series.get(n);
+    g.strokeStyle = seriesColor([...S.series.keys()].indexOf(n));
+    g.lineWidth = 1.6; g.beginPath();
+    let started = false;
+    for (const p of arr) {
+      if (p.t < t0) continue;
+      const x = X(p.t), y = Y(p.v);
+      if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+    }
+    g.stroke();
+  });
+}
+setInterval(() => { if (S.series.size) drawChart(); }, 250);
+window.addEventListener('resize', () => { applyLayout(); drawChart(); });
+
+/* ==========================================================================
+   可拖拽布局（栏宽 / 日志-波形高度，尺寸记忆到本地）
+   ========================================================================== */
+const LAYOUT_KEY = 'serial-studio-layout';
+const LAYOUT_DEFAULT = { wL: 326, wR: 346, chartH: 250 };
+const LAYOUT_MIN = { wL: 220, wR: 220, chartH: 140 };
+const midCol = document.querySelector('main > .col.mid');
+const leftCol = document.querySelector('main > .col');
+const rightCol = document.querySelectorAll('main > .col')[2];
+const layout = { ...LAYOUT_DEFAULT };
+
+function loadLayout() {
+  try {
+    const o = JSON.parse(lsGet(LAYOUT_KEY, 'null'));
+    if (o) for (const k of Object.keys(LAYOUT_DEFAULT)) if (typeof o[k] === 'number' && isFinite(o[k])) layout[k] = o[k];
+  } catch {}
+}
+/* 用几何尺寸换算指针位移：clientWidth/clientHeight 会受自定义滚动条占位影响（少 9px），
+   这里统一用 getBoundingClientRect()，与网格轨道尺寸一致，拖拽 1:1 跟手 */
+function geomSize(el, dim, fallback) {
+  if (!el) return fallback;
+  const r = el.getBoundingClientRect();
+  const v = dim === 'h' ? r.height : r.width;
+  return v > 0 ? v : fallback;
+}
+function curW(which) {
+  if (which === 'chartH') return geomSize($('chartCard'), 'h', layout.chartH || LAYOUT_DEFAULT.chartH);
+  return geomSize(which === 'wL' ? leftCol : rightCol, 'w', layout[which] || LAYOUT_DEFAULT[which]);
+}
+function applyLayout() {
+  const narrow = window.innerWidth <= 1180;
+  const W = document.documentElement.clientWidth || window.innerWidth;
+  const room = Math.max(LAYOUT_MIN.wL, W - 640);   // 预留中栏最小宽度 + 两个分隔条 + 边距
+  const wL = Math.max(LAYOUT_MIN.wL, Math.min(layout.wL, room));
+  const wR = Math.max(LAYOUT_MIN.wR, Math.min(layout.wR, room));
+  const root = document.documentElement.style;
+  root.setProperty('--wL', (narrow ? LAYOUT_DEFAULT.wL : wL) + 'px');
+  root.setProperty('--wR', (narrow ? LAYOUT_DEFAULT.wR : wR) + 'px');
+  if (midCol) {
+    const avail = midCol.clientHeight - 6;
+    const max = Math.max(LAYOUT_MIN.chartH, avail - 140);
+    const h = Math.max(LAYOUT_MIN.chartH, Math.min(layout.chartH, max));
+    midCol.style.setProperty('--chartH', h + 'px');
+  }
+  /* 把被裁剪后的实际值写回状态，保证与呈现一致（下次拖拽从这里继续） */
+  layout.wL = narrow ? LAYOUT_DEFAULT.wL : wL;
+  layout.wR = narrow ? LAYOUT_DEFAULT.wR : wR;
+  drawChart();
+}
+function saveLayout() { lsSet(LAYOUT_KEY, JSON.stringify(layout)); }
+function initSplitters() {
+  const bind = (el, key, resetVal, calc) => {
+    if (!el) return;
+    let dragging = false, startPos = 0, startSize = 0;
+    el.addEventListener('pointerdown', (e) => {
+      if (window.innerWidth <= 1180) return;            // 窄屏为堆叠布局，禁用拖拽
+      dragging = true;
+      startPos = key === 'chartH' ? e.clientY : e.clientX;
+      startSize = curW(key);
+      el.classList.add('drag');
+      document.body.classList.add(key === 'chartH' ? 'dragging-v' : 'dragging');
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const pos = key === 'chartH' ? e.clientY : e.clientX;
+      layout[key] = calc(pos - startPos, startSize);
+      applyLayout();
+    });
+    const stop = () => {
+      if (!dragging) return;
+      dragging = false;
+      el.classList.remove('drag');
+      document.body.classList.remove('dragging', 'dragging-v');
+      applyLayout(); saveLayout();
+    };
+    el.addEventListener('pointerup', stop);
+    el.addEventListener('pointercancel', stop);
+    el.addEventListener('dblclick', () => {
+      layout[key] = resetVal; applyLayout(); saveLayout(); toast('已恢复默认尺寸');
+    });
+  };
+  bind($('spL'), 'wL', LAYOUT_DEFAULT.wL, (d, s) => s + d);             // 右移加宽左栏
+  bind($('spR'), 'wR', LAYOUT_DEFAULT.wR, (d, s) => s - d);             // 左移加宽右栏
+  bind($('spLog'), 'chartH', LAYOUT_DEFAULT.chartH, (d, s) => s - d);   // 上移加高波形
+}
+
+/* ==========================================================================
+   统计
+   ========================================================================== */
+setInterval(() => {
+  const now = Date.now();
+  S.rateWindow.push({ t: now, rx: S.rxBytes, tx: S.txBytes });
+  while (S.rateWindow.length > 2 && now - S.rateWindow[0].t > 2000) S.rateWindow.shift();
+  let rxRate = 0, txRate = 0;
+  if (S.rateWindow.length > 1) {
+    const a = S.rateWindow[0], b = S.rateWindow[S.rateWindow.length - 1];
+    const dt = (b.t - a.t) / 1000;
+    if (dt > 0.2) { rxRate = (b.rx - a.rx) / dt; txRate = (b.tx - a.tx) / dt; }
+  }
+  $('sRx').textContent = fmtBytes(S.rxBytes);
+  $('sTx').textContent = fmtBytes(S.txBytes);
+  $('sRate').textContent = Math.round(rxRate) + ' / ' + Math.round(txRate) + ' B/s';
+  $('sErr').textContent = S.errCount + ' / ' + S.dropCount;
+  $('sFrames').textContent = S.frameCount;
+  $('sUp').textContent = S.connected || S.demo ? hms(now - S.startedAt) : '00:00:00';
+  checkRxStall();
+  checkNoFrames();
+}, 500);
+
+/* ==========================================================================
+   串口连接
+   ========================================================================== */
+function serialSupported() { return 'serial' in navigator; }
+function setStatus(state) {
+  const dot = $('statusDot'), tag = $('connTag');
+  dot.className = 'dot' + ((state === 'open' || state === 'demo') ? ' on' : '');
+  tag.textContent = { idle: 'idle', open: 'connected', demo: 'demo', error: 'error' }[state] || state;
+}
+async function connect() {
+  if (!serialSupported()) { toast('当前浏览器不支持 Web Serial，请使用 Chrome / Edge 89+', true); return; }
+  try {
+    const port = await navigator.serial.requestPort();
+    await openPort(port);
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') return;      // 用户取消
+    pushLine('sys', [], '连接失败：' + (e.message || e), '', true);
+    S.errCount++; setStatus('error');
+  }
+}
+async function openPort(port) {
+  const opts = {
+    baudRate: +$('baud').value,
+    dataBits: +$('databits').value,
+    stopBits: +$('stopbits').value,
+    parity: $('parity').value,
+    flowControl: $('flow').value,
+    bufferSize: 65536,
+  };
+  await port.open(opts);
+  S.port = port;
+  S.connected = true;
+  S.rxBytes = S.txBytes = S.errCount = S.dropCount = S.frameCount = 0;
+  S.startedAt = Date.now();
+  S.lastRxAt = Date.now();
+  S.stallWarned = false;
+  S.readFail = 0;
+  S.parserStalled = false;
+  hexBytesReset();
+  const bnr = $('logBanner'); if (bnr) { bnr.style.display = 'none'; bnr.innerHTML = ''; }
+  resetParser();
+  setStatus('open');
+  $('btnConnect').disabled = true;
+  $('btnDisconnect').disabled = false;
+  $('btnDtr').disabled = $('btnRts').disabled = $('btnPulse').disabled = false;
+  const info = port.getInfo ? port.getInfo() : {};
+  const usb = info.usbVendorId ? `VID:${info.usbVendorId.toString(16).padStart(4, '0').toUpperCase()} PID:${(info.usbProductId || 0).toString(16).padStart(4, '0').toUpperCase()}` : '未知设备';
+  $('devChip').textContent = `${usb} @ ${opts.baudRate}`;
+  pushLine('sys', [], `已连接串口 ${usb} · ${opts.baudRate} ${opts.dataBits}${opts.parity[0].toUpperCase()}${opts.stopBits} 流控:${opts.flowControl}`);
+  /* 主动置位 DTR：部分 USB 转串口芯片（CH340/CP2102 等）在 DTR 为低时不会向主机发送数据，
+     表现为「连接成功但一个字节都收不到」。置位失败（不支持 setSignals）时忽略。 */
+  try {
+    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+    pushLine('sys', [], '已置位 DTR / RTS（若开发板被持续复位，请点「DTR」「RTS」按钮取消）');
+  } catch (e) { /* 设备不支持控制线，忽略 */ }
+  S.writer = port.writable.getWriter();
+  port.addEventListener('disconnect', onDisconnectEvent);
+  /* 连接瞬间开发板可能因 DTR 跳变而复位，稍等一下再开始读，避免丢掉开机打印 */
+  setTimeout(() => { if (S.port === port && !S.closing) readLoop(); }, 120);
+}
+function onDisconnectEvent() {
+  pushLine('sys', [], '设备已拔出，连接中断', '', true);
+  teardown(true);
+}
+/* 读循环：readable 可能因流被取消/拔插而暂时为 null，这里做退避重试，
+   避免「串口已连接但再也收不到数据」 */
+async function readLoop() {
+  S.reading = true;
+  let backoff = 0;
+  while (S.port && !S.closing) {
+    if (!S.port.readable) {
+      if (S.closing) break;
+      if (++backoff > 20) { pushLine('sys', [], '串口读取流不可用，已停止重试（可断开后重新连接）', '', true); break; }
+      await new Promise(r => setTimeout(r, Math.min(200 * backoff, 1500)));
+      continue;
+    }
+    backoff = 0;
+    let reader = null;
+    try {
+      reader = S.port.readable.getReader();
+      S.reader = reader;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value && value.length) {
+          S.rxBytes += value.length;
+          S.lastRxAt = Date.now();
+          hexBytesFeed(value);
+          rxIndicator(value);
+          feedParser(value);
+        }
+      }
+    } catch (e) {
+      if (!S.closing) {
+        S.errCount++;
+        pushLine('sys', [], '读取中断：' + (e.message || e) + '（正在尝试恢复…）', '', true);
+      }
+    } finally {
+      try { if (reader) reader.releaseLock(); } catch {}
+      S.reader = null;
+    }
+    if (S.port && !S.closing) {
+      if (++S.readFail > 8) {
+        pushLine('sys', [], '反复读取失败，请断开后重新连接；若设备需要 RTS/CTS，请把「流控」改成 hardware', '', true);
+        break;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+  S.reading = false;
+}
+/* 原始字节指示灯：任何字节到达都会闪一下，用于区分「没收到」与「收到但没切出帧」 */
+function rxIndicator(bytes) {
+  const el = $('rxLed');
+  if (!el) return;
+  const n = Math.min(bytes.length, 8);
+  el.textContent = 'RX ' + hex(bytes.slice(0, n)) + (bytes.length > n ? ' …' : '');
+  el.style.color = '#0b1017'; el.style.background = '#7ee787';
+  clearTimeout(rxIndicator._t);
+  rxIndicator._t = setTimeout(() => { el.style.color = '#7ee787'; el.style.background = '#0e1a24'; }, 220);
+}
+async function disconnect() {
+  if (S.demo) { stopDemo(); return; }
+  await teardown(false);
+}
+async function teardown(silent) {
+  S.closing = true;
+  resetParser();
+  try { if (S.reader) await S.reader.cancel(); } catch {}
+  try { if (S.writer) { S.writer.releaseLock(); S.writer = null; } } catch {}
+  try { if (S.port) { S.port.removeEventListener('disconnect', onDisconnectEvent); await S.port.close(); } } catch (e) {}
+  S.port = null; S.connected = false; S.closing = false;
+  setStatus('idle');
+  $('btnConnect').disabled = false;
+  $('btnDisconnect').disabled = true;
+  $('btnDtr').disabled = $('btnRts').disabled = $('btnPulse').disabled = true;
+  $('devChip').textContent = '未连接';
+  if (!silent) pushLine('sys', [], '已断开连接');
+}
+async function sendBytes(bytes, src) {
+  if (!bytes.length) return;
+  if (S.demo) {
+    S.txBytes += bytes.length;
+    pushLine('tx', bytes, src === 'hex' ? '' : bytesToText(bytes, 'utf-8'), '演示模式（回环）');
+    return;
+  }
+  if (!S.port || !S.writer) { toast('串口未连接', true); return; }
+  S.writePending = true;
+  try {
+    /* 写入加超时：对方不取数据导致发送缓冲区满时，write() 会永久挂起，这里兜底避免界面假死 */
+    await Promise.race([
+      S.writer.write(bytes),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('写入超时（对方可能未读取数据，或需要 RTS/CTS 流控）')), 5000)),
+    ]);
+    S.txBytes += bytes.length;
+    txIndicator(bytes);
+    pushLine('tx', bytes, src === 'hex' ? bytesToAscii(bytes) : bytesToText(bytes, 'utf-8'));
+    $('txTag').textContent = fmtBytes(S.txBytes);
+  } catch (e) {
+    S.errCount++;
+    pushLine('sys', [], '发送失败：' + (e.message || e), '', true);
+    /* 写入卡住时尝试通过取消读流解开底层队列 */
+    try { if (S.reader) await S.reader.cancel(); } catch {}
+  } finally {
+    S.writePending = false;
+  }
+}
+function txIndicator(bytes) {
+  const el = $('txLed');
+  if (!el) return;
+  const n = Math.min(bytes.length, 8);
+  el.textContent = 'TX ' + hex(bytes.slice(0, n)) + (bytes.length > n ? ' …' : '');
+  el.style.color = '#0b1017'; el.style.background = '#79c0ff';
+  clearTimeout(txIndicator._t);
+  txIndicator._t = setTimeout(() => { el.style.color = '#79c0ff'; el.style.background = '#0e1a24'; }, 220);
+}
+/* 连接后长时间零字节：给出可执行的排查建议（只提示一次） */
+function checkRxStall() {
+  if (!S.connected || S.demo || S.closing || S.stallWarned) return;
+  if (S.rxBytes > 0) return;
+  if (Date.now() - (S.lastRxAt || S.startedAt) < 8000) return;
+  S.stallWarned = true;
+  pushLine('sys', [], '已连接 8 秒但收到 0 字节，请依次排查：① 波特率是否与设备一致（115200/9600…）；'
+    + '② 设备是否真的在发数据（TX/RX 是否接反）；③ 「切帧方式」若为定长/分隔符，帧头不匹配会导致字节被当作噪声丢弃，'
+    + '可先切到「原始流」确认；④ 「流控」若不是无，改回无；⑤ 换一个串口助手确认设备本身有输出。', '', true);
+}
+/* 当前切帧方式的可读名称（selectedOptions 不存在时回退到 value） */
+function pModeLabel() {
+  const el = $('pMode');
+  if (el.selectedOptions && el.selectedOptions[0]) return el.selectedOptions[0].textContent;
+  return el.value;
+}
+/* 收到数据但一帧都没切出来：多半是帧头/长度约定不匹配，给出自动识别结果与一键修复 */
+function checkNoFrames() {
+  if (!S.connected || S.demo || S.closing || S.parserStalled) return;
+  /* 用原始字节环形缓冲判断「确实收到过数据」，它只由 readLoop 写入，天然不受切帧影响 */
+  if (HEXB_N < 256 || S.frameCount > 0) return;
+  if ($('pMode').value === 'raw') return;                 // 原始流本来就不切帧
+  if (Date.now() - (S.lastRxAt || S.startedAt) < 1500) return;
+  S.parserStalled = true;
+  const buf = hexBytesGet(2048);
+  const guess = analyzeHead(buf);
+  const cmd = guess ? guess.head.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ') : '';
+  showNoFrameBanner(guess, buf);
+  pushLine('sys', [], `已收到 ${fmtBytes(HEXB_N)} 数据，但按当前的「${pModeLabel()}」一帧都没切出来，`
+    + `帧头/长度约定可能与设备协议不一致。已把前 ${buf.length} 字节保存在内存中，可用「复制原始 HEX」拿去分析。`, '', true);
+  if (guess) {
+    pushLine('sys', [], `自动分析：最可能的帧头是 ${cmd}（重复出现约 ${guess.frames} 次，间隔约 ${guess.len} 字节），`
+      + '可点「按此帧头切换」一键应用。');
+  }
+}
+function showNoFrameBanner(guess, buf) {
+  const el = $('logBanner');
+  if (!el) return;
+  const cmd = guess ? guess.head.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ') : '';
+  el.style.display = '';
+  el.innerHTML =
+    '<div class="bnr">'
+    + '<div class="bnr-t">⚠️ 收到 ' + esc(fmtBytes(HEXB_N)) + ' 数据，但当前切帧方式一帧都没切出来</div>'
+    + '<div class="bnr-d">通常是帧头/长度约定与设备协议不一致，字节被当成噪声丢弃了。'
+    + (guess ? '自动分析发现最可能的帧头是 <b>' + esc(cmd) + '</b>（约 ' + guess.frames + ' 次重复，间隔约 ' + guess.len + ' 字节）。'
+             : '未能自动识别出稳定的帧头。')
+    + '</div>'
+    + '<div class="bnr-b">'
+    + (guess ? '<button class="pri" id="bnrApply">按 ' + esc(cmd) + ' 帧头切换</button>' : '')
+    + '<button class="gho" id="bnrRaw">切到原始流直显</button>'
+    + '<button class="gho" id="bnrCopy">复制原始 HEX</button>'
+    + '<button class="gho" id="bnrClose">关闭</button>'
+    + '</div>'
+    + '<div class="bnr-h">前 ' + Math.min(buf.length, 96) + ' 字节：<code>' + esc(hexBytesHex(96)) + '</code></div>'
+    + '</div>';
+  const apply = $('bnrApply');
+  if (apply) apply.addEventListener('click', () => {
+    el.style.display = 'none';
+    $('pMode').value = 'len';
+    $('lenHead').value = cmd;
+    $('lenPos').value = guess.first + 2;              // 长度字段通常在帧头之后
+    $('lenSize').value = '1';
+    $('lenKind').value = 'total';
+    $('lenExtra').value = '0';
+    syncParserUI();
+    S.frameCount = 0; S.parserStalled = false; S.dropCount = 0;
+    pushLine('sys', [], '已按 ' + cmd + ' 作为帧头切帧，并在其后第 ' + (guess.first + 2)
+      + ' 字节处读长度字段。若仍无帧，请核对「长度含义 / 附加值」——也可以先切到原始流直显确认数据本身。');
+  });
+  $('bnrRaw').addEventListener('click', () => {
+    el.style.display = 'none';
+    $('pMode').value = 'raw'; syncParserUI();
+    pushLine('sys', [], '已切到原始流直显（不切帧），此时每个字节都会显示出来。');
+  });
+  $('bnrCopy').addEventListener('click', async () => {
+    const txt = hexBytesHex(2048);
+    try { await navigator.clipboard.writeText(txt); toast('已复制前 ' + Math.min(HEXB_N, 2048) + ' 字节 HEX'); }
+    catch { toast('浏览器拒绝剪贴板访问，可在控制台执行 copy(window.__rawHex())', true); }
+  });
+  $('bnrClose').addEventListener('click', () => { el.style.display = 'none'; });
+}
+
+/* ==========================================================================
+   发送区
+   ========================================================================== */
+function txPayload() {
+  const raw = $('txArea').value;
+  const isHex = $('txHex').checked;
+  let body;
+  if (isHex) body = Array.from(parseHexStr(raw));
+  else {
+    let text = unescapeText(raw);
+    const enc = $('txEnc').value;
+    if (enc === 'GBK') body = gbkEncode(text);
+    else body = Array.from(new TextEncoder().encode(text));
+  }
+  const ap = $('append').value;
+  const tail = { none: [], crlf: [0x0d, 0x0a], lf: [0x0a], cr: [0x0d], nul: [0x00] }[ap] || [];
+  return Uint8Array.from(body.concat(tail));
+}
+function updateTxPreview() {
+  let out = '';
+  try {
+    const b = txPayload();
+    out = `将发送 ${b.length} 字节：${hex(b)}`;
+    $('txPreview').style.color = 'var(--dim2)';
+  } catch (e) { out = '内容无效：' + e.message; $('txPreview').style.color = 'var(--err)'; }
+  $('txPreview').textContent = out;
+}
+/* 极简 GBK 编码：仅覆盖常用汉字区间，未命中回落 UTF-8 */
+let GBK_TABLE = null;
+function gbkEncode(str) {
+  if (!GBK_TABLE) {
+    GBK_TABLE = new Map();
+    try {
+      const dec = new TextDecoder('gbk');
+      for (let hi = 0x81; hi <= 0xfe; hi++) for (let lo = 0x40; lo <= 0xfe; lo++) {
+        if (lo === 0x7f) continue;
+        const ch = dec.decode(Uint8Array.from([hi, lo]));
+        if (ch && ch.length === 1 && ch !== '\ufffd' && !GBK_TABLE.has(ch)) GBK_TABLE.set(ch, [hi, lo]);
+      }
+    } catch { /* 浏览器不支持 gbk 解码 */ }
+  }
+  const out = [];
+  for (const ch of str) {
+    const code = ch.codePointAt(0);
+    if (code < 0x80) { out.push(code); continue; }
+    const pair = GBK_TABLE.get(ch);
+    if (pair) out.push(pair[0], pair[1]);
+    else out.push(...new TextEncoder().encode(ch));
+  }
+  return out;
+}
+function doSend() {
+  let b;
+  try { b = txPayload(); } catch (e) { toast(e.message, true); return; }
+  sendBytes(b, $('txHex').checked ? 'hex' : 'text');
+}
+let periodicTimer = null;
+function togglePeriodic() {
+  if (periodicTimer) {
+    clearInterval(periodicTimer); periodicTimer = null;
+    $('btnPeriodic').textContent = '循环发送'; $('btnPeriodic').classList.remove('pri');
+    return;
+  }
+  if (!S.port && !S.demo) { toast('请先连接串口或进入演示模式', true); return; }
+  const ms = +$('interval').value;
+  doSend();
+  periodicTimer = setInterval(doSend, ms);
+  $('btnPeriodic').textContent = '停止循环';
+  $('btnPeriodic').classList.add('pri');
+}
+
+/* ==========================================================================
+   快捷指令
+   ========================================================================== */
+let quickItems = [
+  { name: '查询版本', data: 'AT+VER?' },
+  { name: '软复位', data: 'AA 55 00 01 01 00' },
+  { name: '读取状态', data: 'AT+STAT?' },
+  { name: '停止', data: 'AT+STOP' },
+];
+function renderQuick() {
+  const el = $('quickList');
+  el.innerHTML = quickItems.map((q, i) =>
+    `<div class="qrow">
+       <button class="gho" style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis" data-send="${i}" title="${esc(q.data)}">▶ ${esc(q.name || '未命名')}</button>
+       <input type="text" value="${esc(q.data)}" data-edit="${i}" title="点击编辑内容">
+       <button class="dan" data-del="${i}" style="padding:5px 8px">✕</button>
+     </div>`).join('') || '<span class="hint">还没有快捷指令</span>';
+  el.querySelectorAll('[data-send]').forEach(b => b.addEventListener('click', () => {
+    const q = quickItems[+b.getAttribute('data-send')];
+    let bytes;
+    try {
+      bytes = $('quickUseHex').checked
+        ? Array.from(parseHexStr(q.data))
+        : Array.from(new TextEncoder().encode(unescapeText(q.data)));
+    } catch (e) { toast('指令内容无效：' + e.message, true); return; }
+    sendBytes(Uint8Array.from(bytes), $('quickUseHex').checked ? 'hex' : 'text');
+  }));
+  el.querySelectorAll('[data-edit]').forEach(inp => {
+    inp.addEventListener('change', () => { quickItems[+inp.getAttribute('data-edit')].data = inp.value; persistQuick(); });
+  });
+  el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    quickItems.splice(+b.getAttribute('data-del'), 1); renderQuick(); persistQuick();
+  }));
+}
+function persistQuick() {
+  let o = {};
+  try { o = JSON.parse(lsGet('serial-studio-cfg', '{}')) || {}; } catch { o = {}; }
+  o.quick = quickItems;
+  lsSet('serial-studio-cfg', JSON.stringify(o));
+}
+
+/* ==========================================================================
+   字段表 UI
+   ========================================================================== */
+function renderFields() {
+  const tb = $('fieldTable').querySelector('tbody');
+  tb.innerHTML = fieldDefs.map((f, i) => `
+    <tr>
+      <td><input type="text" value="${esc(f.name)}" data-f="name" data-i="${i}" style="width:78px"></td>
+      <td><select data-f="type" data-i="${i}">${Object.entries(FIELD_TYPES).map(([k, v]) => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></td>
+      <td><input type="number" value="${f.off}" data-f="off" data-i="${i}" style="width:48px" min="0"></td>
+      <td><input type="number" value="${f.len || 1}" data-f="len" data-i="${i}" style="width:44px" min="1" title="HEX/ASCII/BCD 字段填 0 表示自动延伸到校验位之前"></td>
+      <td><select data-f="endian" data-i="${i}" style="width:56px"><option value="">默认</option><option value="le" ${f.endian === 'le' ? 'selected' : ''}>LE</option><option value="be" ${f.endian === 'be' ? 'selected' : ''}>BE</option></select></td>
+      <td><button class="dan" data-del="${i}" style="padding:3px 7px">✕</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" class="hint">暂无字段，点击「+ 添加字段」或选自带示例</td></tr>';
+  tb.querySelectorAll('[data-f]').forEach(el => el.addEventListener('change', () => {
+    const i = +el.getAttribute('data-i'), k = el.getAttribute('data-f');
+    fieldDefs[i][k] = (k === 'off' || k === 'len') ? (+el.value || 0) : el.value;
+    if (k === 'type') { const t = FIELD_TYPES[el.value]; if (t && !t.variable) fieldDefs[i].len = t.len; renderFields(); }
+  }));
+  tb.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { fieldDefs.splice(+b.getAttribute('data-del'), 1); renderFields(); }));
+}
+function syncParserUI() {
+  const m = $('pMode').value;
+  $('cfgLine').style.display = (m === 'line') ? '' : 'none';
+  $('cfgDelim').style.display = (m === 'delim') ? '' : 'none';
+  $('cfgLen').style.display = (m === 'len') ? '' : 'none';
+  $('cfgTimeout').style.display = (m === 'timeout') ? '' : 'none';
+  $('crcCfg').style.display = $('chkCrc').checked ? '' : 'none';
+  resetParser();
+}
+
+/* ==========================================================================
+   演示模式（虚拟设备）
+   ========================================================================== */
+let demoTimer = null;
+function startDemo() {
+  S.demo = true; S.connected = true; S.startedAt = Date.now();
+  S.rxBytes = S.txBytes = S.errCount = S.dropCount = S.frameCount = 0;
+  resetParser(); setStatus('demo');
+  $('btnDemo').textContent = '■ 停止演示';
+  $('btnDemo').classList.add('pri');
+  $('btnConnect').disabled = true;
+  $('devChip').textContent = '虚拟设备 XBot-SIM @ 100Hz';
+  pushLine('sys', [], '演示模式已开启：模拟传感器帧 AA 55 | LEN | 4×float | SEQ | CRC16，100 Hz');
+  let seq = 0, t0 = Date.now();
+  demoTimer = setInterval(() => {
+    const t = (Date.now() - t0) / 1000;
+    const vals = [
+      Math.sin(t * 1.7) * 12 + 25 + (Math.random() - .5),      // 温度
+      Math.sin(t * 0.6) * 20 + 55 + (Math.random() - .5) * 2,  // 湿度
+      Math.sin(t * 2.3) * 0.3 + 12.2 + (Math.random() - .5) * .05, // 电压
+      Math.cos(t * 1.1) * 0.4 + 1.0 + (Math.random() - .5) * .05,  // 电流
+    ];
+    const payload = [];
+    for (const v of vals) {
+      const dv = new DataView(new ArrayBuffer(4));
+      dv.setFloat32(0, v, false);
+      payload.push(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    }
+    payload.push(seq++ & 0xff);
+    /* 帧 = AA 55 | LEN(整帧字节数=22) | 4×float | SEQ | CRC16(LE)
+       CRC 覆盖「整帧」，帧头也计入 —— 与页面默认校验范围一致 */
+    const frame = [0xaa, 0x55, 0x00, ...payload];
+    frame[2] = frame.length + 2;
+    const c = crc16(frame, { poly: 0xa001, init: 0xffff, refin: true, xorout: 0 });
+    frame.push(c & 0xff, (c >> 8) & 0xff);
+    const bytes = Uint8Array.from(frame);
+    S.rxBytes += bytes.length;
+    feedParser(bytes);
+  }, 100);
+}
+function stopDemo() {
+  clearInterval(demoTimer); demoTimer = null;
+  S.demo = false; S.connected = false;
+  resetParser(); setStatus('idle');
+  $('btnDemo').textContent = '▶ 演示模式'; $('btnDemo').classList.remove('pri');
+  $('btnConnect').disabled = false;
+  $('devChip').textContent = '未连接';
+  pushLine('sys', [], '演示模式已停止');
+}
+
+/* ==========================================================================
+   导入 / 导出
+   ========================================================================== */
+function download(name, text, mime) {
+  const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function exportTxt() {
+  const rows = S.lines.filter(lineMatches);
+  if (!rows.length) { toast('没有可导出的数据', true); return; }
+  const txt = rows.map(r => `[${r.time}] ${r.dir.toUpperCase()}  ${hex(r.bytes)}${r.text ? '   |  ' + JSON.stringify(r.text) : ''}${r.extra ? '   |  ' + r.extra : ''}`).join('\r\n');
+  download('serial-log-' + Date.now() + '.txt', txt);
+}
+function exportCsv() {
+  const names = [...S.series.keys()];
+  if (!names.length) { toast('没有波形数据，先在「字段解析」里定义数值字段', true); return; }
+  const t0 = S.series.get(names[0])[0]?.t || Date.now();
+  const rows = ['time_s,' + names.join(',')];
+  const times = new Set();
+  for (const n of names) for (const p of S.series.get(n)) times.add(p.t);
+  for (const t of [...times].sort((a, b) => a - b)) {
+    const cells = names.map(n => {
+      const arr = S.series.get(n);
+      let v = '';
+      for (const p of arr) if (p.t === t) v = p.v;
+      return v;
+    });
+    rows.push(((t - t0) / 1000).toFixed(3) + ',' + cells.join(','));
+  }
+  download('serial-data-' + Date.now() + '.csv', rows.join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+/* ==========================================================================
+   事件绑定
+   ========================================================================== */
+function bind() {
+  $('btnConnect').addEventListener('click', connect);
+  $('btnDisconnect').addEventListener('click', disconnect);
+  $('btnDemo').addEventListener('click', () => S.demo ? stopDemo() : startDemo());
+  $('btnSaveCfg').addEventListener('click', saveCfg);
+  $('btnLoadCfg').addEventListener('click', () => loadCfg(false));
+  $('btnSend').addEventListener('click', doSend);
+  $('btnPeriodic').addEventListener('click', togglePeriodic);
+  $('btnClear').addEventListener('click', () => {
+    S.lines = []; S.frames = []; S.series.clear(); S.seriesHidden.clear();
+    S.rxBytes = S.txBytes = S.errCount = S.dropCount = S.frameCount = 0;
+    S.lastFrame = null; S.pendingRaw = [];
+    S.parserStalled = false; hexBytesReset();
+    const bnr = $('logBanner'); if (bnr) { bnr.style.display = 'none'; bnr.innerHTML = ''; }
+    $('log').innerHTML = '<div class="empty">等待数据…</div>';
+    $('lastTable').querySelector('tbody').innerHTML = '<tr><td class="hint">尚无数据</td></tr>';
+    $('shownChip').textContent = '0 行';
+    renderLegend(); drawChart(); resetParser();
+  });
+  $('btnExportTxt').addEventListener('click', exportTxt);
+  $('btnExportCsv').addEventListener('click', exportCsv);
+  /* 一键排查：把可能挡住数据的界面/解析设置全部放开，并切换到原始流直显 */
+  $('btnDiag').addEventListener('click', () => {
+    $('pause').checked = false;
+    $('filter').value = '';
+    $('dispFmt').value = 'both';
+    $('dispDir').value = 'rx';
+    $('pMode').value = 'raw';
+    $('flow').value = 'none';
+    S.filterRe = null;
+    S.sysOnlyTip = true;
+    syncParserUI();
+    pushLine('sys', [], '已进入排查状态：原始流直显、只显示接收、无过滤。'
+      + '若此处能看到字节滚动，说明串口收数据正常，问题出在「切帧方式 / 帧头 / 波特率」或设备协议上；'
+      + '仍无字节则检查波特率、接线（TX↔RX 需交叉）、设备是否真的在发送。');
+  });
+  $('btnAddField').addEventListener('click', () => {
+    fieldDefs.push({ name: 'F' + (fieldDefs.length + 1), type: 'u16', off: 0, len: 2, endian: '' }); renderFields();
+  });
+  $('btnPresetSensor').addEventListener('click', () => {
+    fieldDefs.length = 0;
+    fieldDefs.push({ name: 'SEQ', type: 'u8', off: 19, len: 1, endian: '' });
+    fieldDefs.push({ name: '温度', type: 'f32', off: 3, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '湿度', type: 'f32', off: 7, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '电压', type: 'f32', off: 11, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '电流', type: 'f32', off: 15, len: 4, endian: 'be' });
+    $('pMode').value = 'len'; $('lenHead').value = 'AA 55'; $('lenPos').value = 2;
+    $('lenSize').value = 1; $('lenKind').value = 'total'; $('lenExtra').value = 0;
+    $('chkCrc').checked = true; $('crcAlgo').value = 'crc16modbus'; $('crcScope').value = 'all';
+    renderFields(); syncParserUI(); toast('已载入示例：AA55 | LEN | 4×float | SEQ | CRC16');
+  });
+  /* 预设：与上位机通讯的二进制帧（小端）
+     | SOF A5 | LEN=DATA字节数 | SEQ | CMD | DATA(LEN) | CRC8 |
+     CRC8 覆盖 LEN~DATA，poly 0x31 / init 0xFF / 无反射 */
+  $('btnPresetTLV').addEventListener('click', () => {
+    fieldDefs.length = 0;
+    fieldDefs.push({ name: 'SEQ', type: 'u8', off: 2, len: 1, endian: '' });
+    fieldDefs.push({ name: 'CMD', type: 'u8', off: 3, len: 1, endian: '' });
+    fieldDefs.push({ name: 'DATA', type: 'hex', off: 4, len: 0, endian: '' });   // 0 = 自动到 CRC 之前
+    $('pMode').value = 'len';
+    $('lenHead').value = 'A5';        // SOF 单字节
+    $('lenPos').value = 1;            // LEN 在帧内偏移 1（SOF 占偏移 0）
+    $('lenSize').value = 1;
+    $('lenKind').value = 'payload';   // LEN = DATA 字节数
+    $('lenExtra').value = 3;          // 整帧 = lenPos(1) + lenSize(1) + LEN(DATA) + 3（SEQ+CMD+CRC8）
+    $('lenEndian').value = 'le';
+    $('chkCrc').checked = true;
+    $('crcAlgo').value = 'crc8_31';   // poly 0x31 / init 0xFF / 无反射
+    $('crcScope').value = 'afterHead';// 覆盖 LEN~DATA（不含 SOF）
+    $('crcWhere').value = 'tail';
+    $('crcEndian').value = 'le';
+    renderFields(); syncParserUI();
+    toast('已载入 TLV 预设：A5 | LEN | SEQ | CMD | DATA | CRC8(0x31)');
+    pushLine('sys', [], '已应用 TLV 协议预设：帧头 A5、长度字段位置 1（LEN 在帧内偏移 1）、'
+      + '长度含义=DATA 字节数、附加值 3（整帧 = 1 SOF + 1 LEN + LEN DATA + SEQ 1 + CMD 1 + CRC8 1）、'
+      + 'CRC8 覆盖 LEN~DATA（poly 0x31 / init 0xFF / 无反射，校验位在帧尾）。'
+      + '若 MCU 用的是其他 CRC8 参数（如反射式 MAXIM），请在「算法」里换一个再试。');
+  });
+  $('pMode').addEventListener('change', syncParserUI);
+  ['delimHead','delimTail','lenHead','lenPos','lenSize','lenKind','lenExtra','lenEndian','lineEnd']
+    .forEach(id => $(id).addEventListener('change', resetParser));
+  $('timeoutMs').addEventListener('input', () => { $('timeoutVal').textContent = $('timeoutMs').value; });
+  $('timeoutMs').addEventListener('change', resetParser);
+  $('chkCrc').addEventListener('change', syncParserUI);
+  $('btnAddQuick').addEventListener('click', () => {
+    const n = $('qName').value.trim(), d = $('qData').value.trim();
+    if (!d) { toast('请输入内容', true); return; }
+    quickItems.push({ name: n || '指令' + (quickItems.length + 1), data: d });
+    $('qName').value = ''; $('qData').value = '';
+    renderQuick(); persistQuick();
+  });
+  $('dispFmt').addEventListener('change', rerrLines);
+  $('dispDir').addEventListener('change', rerrLines);
+  $('pause').addEventListener('change', () => {
+    S.pause = $('pause').checked;
+    if (!S.pause) { S.pendingRaw = S.lines.slice(-MAX_LINES); scheduleFlush(); }
+  });
+  $('autoscroll').addEventListener('change', () => { S.autoScroll = $('autoscroll').checked; });
+  $('filter').addEventListener('input', () => {
+    const f = $('filter').value.trim();
+    S.filterRe = (f.length > 2 && f.startsWith('/') && f.endsWith('/')) ? new RegExp(f.slice(1, -1), 'g') : null;
+    rerrLines();
+  });
+  $('txArea').addEventListener('input', updateTxPreview);
+  ['append','txEnc','quickUseHex'].forEach(id => $(id).addEventListener('change', updateTxPreview));
+  $('txText').addEventListener('change', updateTxPreview);
+  $('txHex').addEventListener('change', updateTxPreview);
+  $('btnDtr').addEventListener('click', async () => { try { await S.port.setSignals({ dataTerminalReady: !(await S.port.getSignals()).dataTerminalReady }); } catch (e) { toast('设置 DTR 失败：' + e.message, true); } });
+  $('btnRts').addEventListener('click', async () => { try { await S.port.setSignals({ requestToSend: !(await S.port.getSignals()).requestToSend }); } catch (e) { toast('设置 RTS 失败：' + e.message, true); } });
+  $('btnPulse').addEventListener('click', async () => {
+    try {
+      await S.port.setSignals({ dataTerminalReady: false });
+      setTimeout(async () => { try { await S.port.setSignals({ dataTerminalReady: true }); } catch {} }, 200);
+      toast('已发送 DTR 复位脉冲');
+    } catch (e) { toast('脉冲失败：' + e.message, true); }
+  });
+  /* 键盘 */
+  $('txArea').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); doSend(); }
+    else if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); const ta = e.target, p = ta.selectionStart; ta.value = ta.value.slice(0, p) + '\n' + ta.value.slice(ta.selectionEnd); ta.selectionStart = ta.selectionEnd = p + 1; updateTxPreview(); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); $('btnClear').click(); }
+    if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); $('txArea').focus(); }
+  });
+  window.addEventListener('beforeunload', e => {
+    if (S.port) { e.preventDefault(); e.returnValue = ''; }
+  });
+}
+
+/* ==========================================================================
+   启动
+   ========================================================================== */
+(function init() {
+  if (!serialSupported()) {
+    $('compatWarn').style.display = '';
+    $('compatWarn').innerHTML = '⚠️ 当前浏览器不支持 <b>Web Serial API</b>（如 Firefox / Safari）。请改用 <b>Chrome / Edge 89+</b> 打开本文件；'
+      + '你仍可以使用「演示模式」查看解析与波形功能。';
+    $('btnConnect').disabled = true;
+  }
+  bind();
+  loadCfg(true);
+  if (!fieldDefs.length) {
+    fieldDefs.push({ name: '温度', type: 'f32', off: 3, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '湿度', type: 'f32', off: 7, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '电压', type: 'f32', off: 11, len: 4, endian: 'be' });
+    fieldDefs.push({ name: '电流', type: 'f32', off: 15, len: 4, endian: 'be' });
+    fieldDefs.push({ name: 'SEQ', type: 'u8', off: 19, len: 1, endian: '' });
+    $('pMode').value = 'len'; $('chkCrc').checked = true;
+    $('crcScope').value = 'all'; $('lenKind').value = 'total'; $('lenExtra').value = '0';
+  }
+  renderFields(); renderQuick(); syncParserUI(); updateTxPreview(); renderLegend();
+  loadLayout(); initSplitters(); applyLayout();
+  /* 便于在控制台分析协议：window.__rawHex() 取最近收到的原始字节 */
+  window.__rawHex = (n) => hexBytesHex(n || 512);
+  window.__analyzeHead = () => analyzeHead(hexBytesGet(2048));
+  $('append').value = 'lf';
+  $('txPreview').textContent = '就绪';
+  setTimeout(() => {
+    applyLayout();
+    pushLine('sys', [], 'Serial Studio 就绪。选择串口并连接，或点击「演示模式」查看解析 / 波形 / 发送功能。');
+    if (serialSupported()) pushLine('sys', [], '提示：先设置好波特率与切帧方式，再点击「选择串口并连接」。');
+    pushLine('sys', [], '布局提示：拖动栏目之间的分隔条可自定义大小（双击分隔条恢复默认，尺寸自动记忆）。');
+    /* 支持 file:///...serial-studio.html#demo 直接进入演示模式 */
+    const hash = (globalThis.location && globalThis.location.hash) || '';
+    if (/(^|[#&?])demo(=1)?(&|$)/.test(hash)) startDemo();
+  }, 60);
+})();
+</script>
+</body>
+</html>
