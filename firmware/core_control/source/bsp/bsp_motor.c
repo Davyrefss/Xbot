@@ -23,8 +23,9 @@
  * M3 -- TIM5(PA0, PA1)
  * M4 -- TIM3(PA6, PA7)
  * 
- * 编码器: 11 PPR(装在电机轴上), Encoder编码器模式 TI1 and TI2 --> (4倍频) -> 电机轴每圈 44 计数
- *         减速比 30:1, 输出轴每圈 = 44 × 30 = 1320 计数(见 bsp_motor.h 的 BSP_MOTOR_ENC_CPR)
+ * 编码器: 11 PPR(装在电机轴上), 
+ *        Encoder编码器模式 TI1 and TI2 --> (4倍频) -> 电机轴每圈 44 计数
+ *        减速比 30:1, 输出轴每圈 = 44 × 30 = 1320 
  * *************************************************************************
  */
 
@@ -63,12 +64,26 @@ static const motor_hw_config_t motor_hw[MOTOR_NUM] = {
     [MOTOR4] = { &htim1, MOTOR_CH_M4A, MOTOR_CH_M4B, 1, 1, &htim3 },
 };
 
+/* functions implementation */
+/**
+ * @brief 设置通道占空比
+ * @param m 电机配置
+ * @param ch 通道
+ * @param duty 占空比
+ * @param inv 反算
+ */
 static void ch_set_duty(const motor_hw_config_t *m, uint32_t ch, uint16_t duty, uint8_t inv)
 {
     uint16_t ccr = inv ? (uint16_t)(BSP_MOTOR_PWM_PERIOD - duty) : duty;
     __HAL_TIM_SET_COMPARE(m->pwm_htim, ch, ccr);
 }
 
+/**
+ * @brief 设置电机占空比
+ * @param id 电机ID
+ * @param in1_duty 输入1占空比
+ * @param in2_duty 输入2占空比
+ */
 void bsp_motor_set_duty(motor_id_t id, uint16_t in1_duty, uint16_t in2_duty)
 {
     if (id >= MOTOR_NUM) return;
@@ -76,7 +91,10 @@ void bsp_motor_set_duty(motor_id_t id, uint16_t in1_duty, uint16_t in2_duty)
     ch_set_duty(m, m->in1_ch, in1_duty, m->in1_inv);
     ch_set_duty(m, m->in2_ch, in2_duty, m->in2_inv);
 }
-
+/**
+ * @brief 初始化电机
+ * @param id 电机ID
+ */
 void bsp_motor_init(motor_id_t id)
 {
     const motor_hw_config_t *m = &motor_hw[id];
@@ -96,13 +114,20 @@ void bsp_motor_init(motor_id_t id)
     bsp_motor_set_duty(id, 0, 0);   /* 初始停止 */
 }
 
+/**
+ * @brief 初始化所有电机
+ */
 void bsp_motor_all_init(void)
 {
     for (motor_id_t id = 0; id < MOTOR_NUM; id++) {
         bsp_motor_init(id);
     }
 }
-
+/**
+ * @brief 获取电机编码器值
+ * @param id 电机ID
+ * @return 编码器计数值
+ */
 uint16_t bsp_motor_get_encoder(motor_id_t id)
 {
     return __HAL_TIM_GET_COUNTER(motor_hw[id].enc_htim);

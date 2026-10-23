@@ -15,9 +15,9 @@ typedef struct {
     float   ki;          /* 积分增益 [duty千分比 / (RPM·s)] */
     float   ff_gain;     /* 速度前馈增益 [duty千分比 / RPM] (= 1/K) */
     int16_t ff_offset;   /* 死区前馈偏移 [千分比] (= u0, 稳态死区补偿) */
-    int16_t stiction;    /* 静摩擦额外起步补偿 [千分比] (超出死区部分) */
     int16_t slew_rpm_s;  /* 参考转速爬升率 [rpm/s] */
     int16_t fade_rpm;    /* 起步补偿衰减区间 [rpm] */
+    int16_t stiction;    /* 静摩擦额外起步补偿 [千分比] (超出死区部分) */
 } motor_ctrl_cfg_t;
 
 void    motor_service_init(void);

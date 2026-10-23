@@ -3,6 +3,7 @@
  * @brief 通信任务：App 层，把串口字节喂给协议 → 分发帧 → 回 ACK/遥测
  */
 
+/* include files */
 #include "comm_task.h"
 #include "comm_protocol.h"
 #include "motor_service.h"   /* handle_frame 调它; 同时带来 bsp_motor.h 里的 MOTOR_NUM */
@@ -10,16 +11,24 @@
 #include "system_state.h"
 #include "bsp_usart.h"
 #include "osal.h"
+#include "console.h"
 #include <stdio.h>
 
+/* defines */
 #define COMM_TASK_PERIOD_MS    10u
 #define COMM_TASK_STACK_WORDS  256u
 #define COMM_TASK_PRIORITY     OSAL_PRIO_NORMAL   /* 低于 motor_task(控制优先) */
 
-static osal_task_handle_t comm_task_handle = NULL;
+static osal_task_handle_t comm_task_handle = NULL;      /* 通信任务句柄 */
 
-/* ============ 发送辅助 ============ */
-
+/* functions implementation */
+/**
+ * @brief 构建并发送一帧通信数据
+ * @param cmd 命令码
+ * @param seq 序列号
+ * @param data 数据指针
+ * @param len 数据长度
+ */
 static void comm_send_frame(uint8_t cmd, uint8_t seq, const uint8_t *data, uint8_t len)
 {
     uint8_t buf[COMM_MAX_FRAME];
@@ -27,12 +36,21 @@ static void comm_send_frame(uint8_t cmd, uint8_t seq, const uint8_t *data, uint8
     bsp_usart1_send(buf, n);
 }
 
+/**
+ * @brief 发送ACK响应帧
+ * @param frame 接收到的命令帧
+ * @param result 结果码
+ */
 static void comm_send_ack(const comm_frame_t *frame, uint8_t result)
 {
     uint8_t data[2] = { frame->cmd, result };   /* ACK 载荷: [原cmd][结果码] */
     comm_send_frame(COMM_CMD_ACK, frame->seq, data, 2);
 }
 
+/**
+ * @brief 发送遥测帧
+ * @param frame 接收到命令帧
+ */
 static void comm_send_telemetry(const comm_frame_t *frame)
 {
     uint8_t data[COMM_TELEMETRY_LEN];
@@ -44,6 +62,10 @@ static void comm_send_telemetry(const comm_frame_t *frame)
     comm_send_frame(COMM_CMD_TELEMETRY, frame->seq, data, COMM_TELEMETRY_LEN);
 }
 
+/**
+ * @brief 发送电池状态帧
+ * @param frame 接收到的命令帧
+ */
 static void comm_send_battery(const comm_frame_t *frame)
 {
     uint8_t data[COMM_BATTERY_LEN];
@@ -56,7 +78,10 @@ static void comm_send_battery(const comm_frame_t *frame)
     comm_send_frame(COMM_CMD_BATTERY, frame->seq, data, COMM_BATTERY_LEN);
 }
 
-/* ============ 帧分发 ============ */
+/**
+ * @brief 处理接收到的命令帧
+ * @param frame 接收到的命令帧
+ */
 
 static void handle_frame(const comm_frame_t *frame)
 {
@@ -162,6 +187,7 @@ static void comm_task(void *arg)
     comm_protocol_init();
 
     for (;;) {
+#ifndef ORDINARY_DEBUG        
         /* 1. 把缓冲里的字节全部喂给协议，出完整帧就分发 */
         while (bsp_usart1_read(&byte)) {
             if (comm_protocol_feed(byte, osal_time_get_ms())) {
@@ -171,13 +197,13 @@ static void comm_task(void *arg)
 
         /* 2. 帧超时复位（丢弃残缺帧） */
         comm_protocol_poll(osal_time_get_ms());
-
-        /* 3. 固定周期调度（必须有，否则忙等饿死其它任务） */
+#endif
+        /* 3. 固定周期调度 */
         osal_delay_until(&wake, COMM_TASK_PERIOD_MS);
     }
 }
-
-void comm_task_init(void)
+ 
+void comm_task_init(void) 
 {
     bsp_usart1_init();
     if (!osal_task_create("comm_task", COMM_TASK_STACK_WORDS, COMM_TASK_PRIORITY,

@@ -1,2 +1,4 @@
 build/
 mx.scratch
+tools/__pycache__/*.pyc
+.settings/

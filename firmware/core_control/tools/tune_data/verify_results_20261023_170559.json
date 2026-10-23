@@ -1,0 +1,142 @@
+{
+  "tool": "autotune2",
+  "time": "2026-10-23 17:05:59",
+  "args": {
+    "port": "COM7",
+    "motor": [
+      0,
+      1
+    ],
+    "levels": 6,
+    "duty_low": 480,
+    "duty_high": 900,
+    "max_step": 3.5,
+    "ratio": 1.5,
+    "slew": 500,
+    "fade": 50,
+    "attempts": 3,
+    "hold": 2.6,
+    "targets": [
+      70,
+      140,
+      230
+    ],
+    "max_overshoot": 5.0,
+    "max_sse": 1.5,
+    "max_ripple": 1.5,
+    "verify_only": true,
+    "no_reverse": false,
+    "no_plot": false,
+    "show": false,
+    "plot_path": null,
+    "json": null,
+    "json_dir": null,
+    "dry_run": false,
+    "check": false,
+    "sim_freeze": false
+  },
+  "motors": [
+    {
+      "motor": 0,
+      "name": "M1",
+      "K": null,
+      "u0": null,
+      "r2": null,
+      "tau": null,
+      "points": null,
+      "cfg": null,
+      "verify": [
+        {
+          "target": 70,
+          "steady": 70.08111003370988,
+          "sse": 0.08111003370987646,
+          "ripple": 0.5832598425193934,
+          "peak": 72.0,
+          "overshoot": 2.857142857142857,
+          "settle": 0.7298091999255121,
+          "spikes": 0
+        },
+        {
+          "target": 140,
+          "steady": 140.01715802750513,
+          "sse": 0.017158027505132623,
+          "ripple": 0.5360445410597892,
+          "peak": 141.0,
+          "overshoot": 0.7142857142857143,
+          "settle": 0.6897712999489158,
+          "spikes": 0
+        },
+        {
+          "target": 230,
+          "steady": 230.19612023120598,
+          "sse": 0.1961202312059811,
+          "ripple": 0.582961190818051,
+          "peak": 231.0,
+          "overshoot": 0.43478260869565216,
+          "settle": 0.9998556000646204,
+          "spikes": 0
+        }
+      ],
+      "reverse": null,
+      "ok": true,
+      "ratio": null,
+      "attempt": 0,
+      "battery": [
+        12.154,
+        88,
+        2244
+      ]
+    },
+    {
+      "motor": 1,
+      "name": "M2",
+      "K": null,
+      "u0": null,
+      "r2": null,
+      "tau": null,
+      "points": null,
+      "cfg": null,
+      "verify": [
+        {
+          "target": 70,
+          "steady": 70.29675311200394,
+          "sse": 0.29675311200394106,
+          "ripple": 0.605819464019027,
+          "peak": 72.0,
+          "overshoot": 2.857142857142857,
+          "settle": 0.6500383999664336,
+          "spikes": 0
+        },
+        {
+          "target": 140,
+          "steady": 140.11677062443837,
+          "sse": 0.11677062443837372,
+          "ripple": 0.5997510025427714,
+          "peak": 141.0,
+          "overshoot": 0.7142857142857143,
+          "settle": 0.6698570000007749,
+          "spikes": 0
+        },
+        {
+          "target": 230,
+          "steady": 230.18734448958324,
+          "sse": 0.18734448958323924,
+          "ripple": 0.5249454722338098,
+          "peak": 231.0,
+          "overshoot": 0.43478260869565216,
+          "settle": 0.9999226999934763,
+          "spikes": 0
+        }
+      ],
+      "reverse": null,
+      "ok": true,
+      "ratio": null,
+      "attempt": 0,
+      "battery": [
+        12.12,
+        87,
+        2218
+      ]
+    }
+  ]
+}
