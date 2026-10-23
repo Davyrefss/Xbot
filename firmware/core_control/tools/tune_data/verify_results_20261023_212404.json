@@ -1,0 +1,78 @@
+{
+  "tool": "autotune2",
+  "mode": "verify",
+  "time": "2026-10-23 21:24:04",
+  "port": "COM7",
+  "motors": [
+    {
+      "id": 0,
+      "name": "M1",
+      "K": null,
+      "u0": null,
+      "r2": null,
+      "tau": null,
+      "cfg": null,
+      "verify": [
+        {
+          "target": 70,
+          "sse": 0.298,
+          "ripple": 0.729,
+          "overshoot": 2.86,
+          "settle": 0.91
+        },
+        {
+          "target": 140,
+          "sse": 0.124,
+          "ripple": 0.602,
+          "overshoot": 2.14,
+          "settle": 0.77
+        },
+        {
+          "target": 230,
+          "sse": -0.034,
+          "ripple": 0.592,
+          "overshoot": 2.17,
+          "settle": 1.12
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": 1,
+      "name": "M2",
+      "K": null,
+      "u0": null,
+      "r2": null,
+      "tau": null,
+      "cfg": null,
+      "verify": [
+        {
+          "target": 70,
+          "sse": 0.199,
+          "ripple": 0.64,
+          "overshoot": 2.86,
+          "settle": 0.73
+        },
+        {
+          "target": 140,
+          "sse": 0.229,
+          "ripple": 0.527,
+          "overshoot": 1.43,
+          "settle": 0.63
+        },
+        {
+          "target": 230,
+          "sse": 0.614,
+          "ripple": 0.738,
+          "overshoot": 2.61,
+          "settle": 1.17
+        }
+      ],
+      "ok": true
+    }
+  ],
+  "battery": {
+    "voltage_v": 12.03,
+    "soc_pct": 83
+  }
+}

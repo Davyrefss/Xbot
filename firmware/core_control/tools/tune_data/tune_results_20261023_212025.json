@@ -1,0 +1,108 @@
+{
+  "tool": "autotune2",
+  "mode": "tune",
+  "time": "2026-10-23 21:20:25",
+  "port": "COM7",
+  "motors": [
+    {
+      "id": 0,
+      "name": "M1",
+      "K": 0.5796,
+      "u0": 429.8,
+      "r2": 0.9961,
+      "tau": 0.138,
+      "cfg": {
+        "kp": 2.588,
+        "ki": 18.7883,
+        "ff": 1.7253,
+        "ff_offset": 430,
+        "stiction": 86,
+        "slew": 250,
+        "fade": 50
+      },
+      "verify": [
+        {
+          "target": 70,
+          "sse": -0.041,
+          "ripple": 0.63,
+          "overshoot": 4.29,
+          "settle": null
+        },
+        {
+          "target": 139,
+          "sse": 0.073,
+          "ripple": 0.59,
+          "overshoot": 0.72,
+          "settle": 0.67
+        },
+        {
+          "target": 223,
+          "sse": 0.296,
+          "ripple": 0.695,
+          "overshoot": 0.45,
+          "settle": 0.88
+        }
+      ],
+      "ok": true,
+      "reverse": {
+        "target": -139,
+        "sse": -0.327,
+        "ripple": 0.808,
+        "overshoot": 0.72,
+        "settle": 0.74
+      }
+    },
+    {
+      "id": 1,
+      "name": "M2",
+      "K": 0.5494,
+      "u0": 449.6,
+      "r2": 0.9911,
+      "tau": 0.1,
+      "cfg": {
+        "kp": 2.7304,
+        "ki": 9.789,
+        "ff": 1.8203,
+        "ff_offset": 450,
+        "stiction": 44,
+        "slew": 250,
+        "fade": 50
+      },
+      "verify": [
+        {
+          "target": 64,
+          "sse": 0.051,
+          "ripple": 0.664,
+          "overshoot": 4.69,
+          "settle": 0.78
+        },
+        {
+          "target": 128,
+          "sse": 0.126,
+          "ripple": 0.697,
+          "overshoot": 1.56,
+          "settle": 0.58
+        },
+        {
+          "target": 205,
+          "sse": 0.335,
+          "ripple": 0.699,
+          "overshoot": 1.46,
+          "settle": 0.87
+        }
+      ],
+      "ok": true,
+      "reverse": {
+        "target": -128,
+        "sse": -0.192,
+        "ripple": 0.729,
+        "overshoot": 3.91,
+        "settle": 1.33
+      }
+    }
+  ],
+  "battery": {
+    "voltage_v": 12.04,
+    "soc_pct": 84
+  }
+}

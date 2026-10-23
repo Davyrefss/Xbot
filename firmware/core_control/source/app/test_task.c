@@ -28,7 +28,7 @@ static osal_task_handle_t test_task_handle = NULL;
  */
 static void test_task(void *arg) {
     (void)arg;
-    uint8_t M1 = 0;
+    uint8_t M1 = 1;
     uint16_t count;
     osal_wake_time_t wake;
     osal_wake_time_init(&wake);

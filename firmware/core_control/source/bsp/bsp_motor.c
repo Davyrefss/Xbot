@@ -45,6 +45,12 @@
 #define MOTOR_CH_M4A   TIM_CHANNEL_2
 #define MOTOR_CH_M4B   TIM_CHANNEL_3
 
+/* 编码器输入数字滤波: IC1F/IC2F 编码 0xC = fDTS/16, N=8 ≈ 1.8µs
+ * CubeMX 生成的是 0(不滤波)。霍尔编码器开集输出、边沿较慢, 电机 PWM(20kHz) 与大电流
+ * 走线的干扰会被直接当成边沿计入 -> 偶发丢计数(实测 230rpm 出现过一次)。
+ * 输出轴 300rpm 时每通道信号周期约 600µs, 1.8µs 滤波占 0.3%, 不影响计数精度。 */
+#define BSP_MOTOR_ENC_FILTER   0xCu
+
 /* typedefs */
 typedef struct {
     TIM_HandleTypeDef *pwm_htim;
@@ -58,13 +64,30 @@ typedef struct {
 /* static variables */
 /* 纯硬件映射表, 不可变 */
 static const motor_hw_config_t motor_hw[MOTOR_NUM] = {
-    [MOTOR1] = { &htim8, MOTOR_CH_M1A, MOTOR_CH_M1B, 0, 0, &htim2 },
+    /* M1 与 M2 对向安装: 同极性时两轴绝对转向相同, 两个轮子会一个朝前一个朝后。
+     * 实测 M1 朝后、M2 朝前, 故对调 M1 的 IN1/IN2, 使正占空比时两轮都朝前。
+     */
+    [MOTOR1] = { &htim8, MOTOR_CH_M1B, MOTOR_CH_M1A, 0, 0, &htim2 },
     [MOTOR2] = { &htim8, MOTOR_CH_M2A, MOTOR_CH_M2B, 0, 0, &htim4 },
     [MOTOR3] = { &htim1, MOTOR_CH_M3A, MOTOR_CH_M3B, 0, 0, &htim5 },
     [MOTOR4] = { &htim1, MOTOR_CH_M4A, MOTOR_CH_M4B, 1, 1, &htim3 },
 };
 
 /* functions implementation */
+/**
+ * @brief 配置编码器输入滤波(CCMR1 的 IC1F/IC2F)
+ * @param m 电机配置
+ * @note  CubeMX 生成的是 IC1F=IC2F=0(不滤波); 在用户代码里覆盖, 重新生成 tim.c 不会冲掉
+ */
+static void enc_set_filter(const motor_hw_config_t *m)
+{
+    uint32_t ccmr1 = m->enc_htim->Instance->CCMR1;
+    ccmr1 &= ~((0xFu << 4) | (0xFu << 12));          /* 清 IC1F(bit7:4) / IC2F(bit15:12) */
+    ccmr1 |= ((uint32_t)BSP_MOTOR_ENC_FILTER << 4) |
+             ((uint32_t)BSP_MOTOR_ENC_FILTER << 12);
+    m->enc_htim->Instance->CCMR1 = ccmr1;
+}
+
 /**
  * @brief 设置通道占空比
  * @param m 电机配置
@@ -91,6 +114,7 @@ void bsp_motor_set_duty(motor_id_t id, uint16_t in1_duty, uint16_t in2_duty)
     ch_set_duty(m, m->in1_ch, in1_duty, m->in1_inv);
     ch_set_duty(m, m->in2_ch, in2_duty, m->in2_inv);
 }
+
 /**
  * @brief 初始化电机
  * @param id 电机ID
@@ -100,6 +124,7 @@ void bsp_motor_init(motor_id_t id)
     const motor_hw_config_t *m = &motor_hw[id];
 
     HAL_TIM_Encoder_Start(m->enc_htim, TIM_CHANNEL_ALL);
+    enc_set_filter(m);              /* 编码器输入滤波, 抗 PWM 干扰 */
 
     if (m->in1_inv) HAL_TIMEx_PWMN_Start(m->pwm_htim, m->in1_ch);
     else            HAL_TIM_PWM_Start(m->pwm_htim, m->in1_ch);

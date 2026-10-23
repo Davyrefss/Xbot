@@ -42,12 +42,18 @@
 #define MOTOR_DEFAULT_SLEW_RPM_S  250       /* 参考转速的爬升率 */
 #define MOTOR_DEFAULT_FADE_RPM    50        /* 起步补偿的衰减区间 */
 
-/* 逐电机缺省参数: 四个电机共用一套宏无法表达两台的静摩擦差异(427 vs 447) */
+/** 
+ *   M1: K=0.5796 u0=429.8 tau=0.138 -> kp=2.588 ki=18.79 ff=1.7253 offset=430 stiction=86
+ *   M2: K=0.5494 u0=449.6 tau=0.100 -> kp=2.730 ki=9.79  ff=1.8203 offset=450 stiction=44
+ * 验收: 稳态误差 <=0.34rpm, 纹波 <=0.70, 过冲 <=4.7%, 调节 0.58~0.88s
+ * 注: M2 的 ki/stiction 明显小于 M1 —— M2 死区更高(449.6 vs 429.8)、低速过冲更大,
+ *     自动重试收敛到了更保守的积分。两台的瞬态略有差异, 稳态精度一致。 
+ */
 static const motor_ctrl_cfg_t k_motor_default[MOTOR_NUM] = {
-    [MOTOR1] = { .kp = 2.5379f, .ki = 21.3840f, .ff_gain = 1.6919f,
-                 .ff_offset = 427, .slew_rpm_s = 250, .fade_rpm = 50, .stiction = 85 },
-    [MOTOR2] = { .kp = 2.5457f, .ki = 21.3382f, .ff_gain = 1.6971f,
-                 .ff_offset = 447, .slew_rpm_s = 250, .fade_rpm = 50, .stiction = 89 },
+    [MOTOR1] = { .kp = 2.5880f, .ki = 18.7883f, .ff_gain = 1.7253f,
+                 .ff_offset = 430, .slew_rpm_s = 250, .fade_rpm = 50, .stiction = 86 },
+    [MOTOR2] = { .kp = 2.7304f, .ki = 9.7890f, .ff_gain = 1.8203f,
+                 .ff_offset = 450, .slew_rpm_s = 250, .fade_rpm = 50, .stiction = 44 },
     [MOTOR3] = { .kp = MOTOR_DEFAULT_KP, .ki = MOTOR_DEFAULT_KI,
                  .ff_gain = MOTOR_DEFAULT_FF_GAIN, .ff_offset = MOTOR_DEFAULT_FF_OFFSET,
                  .slew_rpm_s = MOTOR_DEFAULT_SLEW_RPM_S, .fade_rpm = MOTOR_DEFAULT_FADE_RPM,
@@ -69,10 +75,11 @@ typedef enum {
 static uint16_t enc_last[MOTOR_NUM];      /* 上次编码器原始值(16bit) */
 static int32_t  pos_accum[MOTOR_NUM];     /* 累计位置(计数, 带符号) */
 
-/* 编码器计数方向: M2 与 M1 对向安装, 其 A/B 相相对 M1 是反的(实测正占空比 -> 负计数)。
- * 这里只取反"计数", 不碰 PWM: 轮子转向维持机械设计, 但让"正占空比 -> 正转速"符号统一,
- * 否则速度环误差符号相反, 一进闭环就是正反馈。 */
-static const int8_t enc_dir[MOTOR_NUM] = { 1, -1, 1, 1 };
+/* 编码器计数方向(把测量坐标系统一到"正 = 该轮朝前")
+ * 目标约定: 正占空比 -> 车轮朝前 -> 转速与位置为正。
+ *  - M1: 与 M2 对向安装, 同极性时两轮一前一后(实测 M1 朝后)。
+ */
+static const int8_t enc_dir[MOTOR_NUM] = {-1, -1, 1, 1};
 
 static int32_t  m_cnt[MOTOR_NUM];         /* M/T 窗口累计计数 */
 static uint32_t m_us[MOTOR_NUM];          /* M/T 窗口累计 µs */

@@ -18,8 +18,12 @@
 #define COMM_TASK_PERIOD_MS    10u
 #define COMM_TASK_STACK_WORDS  256u
 #define COMM_TASK_PRIORITY     OSAL_PRIO_NORMAL   /* 低于 motor_task(控制优先) */
+#define COMM_LINK_TIMEOUT_MS   500u               /* 上位机超过此时长无有效帧 -> 判断链并刹车 */
 
+/* static variables */
 static osal_task_handle_t comm_task_handle = NULL;      /* 通信任务句柄 */
+static uint32_t last_cmd_ms;                            /* 最近一次收到有效帧的时刻 */
+static bool     link_lost;                              /* 断链状态, 只在跳变时刹一次 */
 
 /* functions implementation */
 /**
@@ -85,7 +89,8 @@ static void comm_send_battery(const comm_frame_t *frame)
 
 static void handle_frame(const comm_frame_t *frame)
 {
-    /* 收到上位机任意有效帧 -> 进入正常运行态 */
+    /* 收到上位机任意有效帧 -> 链路正常, 进入正常运行态 */
+    last_cmd_ms = osal_time_get_ms();
     system_state_set(STATE_NORMAL);
 
     switch (frame->cmd) {
@@ -185,6 +190,8 @@ static void comm_task(void *arg)
 
     osal_wake_time_init(&wake);
     comm_protocol_init();
+    last_cmd_ms = osal_time_get_ms();
+    link_lost   = false;
 
     for (;;) {
 #ifndef ORDINARY_DEBUG        
@@ -197,8 +204,20 @@ static void comm_task(void *arg)
 
         /* 2. 帧超时复位（丢弃残缺帧） */
         comm_protocol_poll(osal_time_get_ms());
+
+        /* 3. 断链保护: 上位机长时间没有有效帧(拔线/上位机崩溃/串口异常) -> 全部刹车,
+         *    否则电机会保持最后一条指令一直转。只在跳变时刹一次, 恢复后自动解除。 */
+        if ((osal_time_get_ms() - last_cmd_ms) > COMM_LINK_TIMEOUT_MS) {
+            if (!link_lost) {
+                motor_service_brake_all();
+                system_state_set(STATE_INIT);   /* LED 常亮 = 未连接上位机 */
+                link_lost = true;
+            }
+        } else {
+            link_lost = false;
+        }
 #endif
-        /* 3. 固定周期调度 */
+        /* 4. 固定周期调度 */
         osal_delay_until(&wake, COMM_TASK_PERIOD_MS);
     }
 }
