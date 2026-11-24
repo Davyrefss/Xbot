@@ -1,0 +1,313 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="generated_robot">
+  <link name="base_link">
+    <inertial>
+      <!-- xyz="-0.010522906 -0.0011715762 0.019525838" -->
+      <origin xyz="0.03 -0.0011715762 0.019525838" rpy="0 0 0" />
+      <mass value="0.67072969" />
+      <inertia ixx="0.0017367242" iyy="0.003945797" izz="0.0050959838" ixy="-1.6526245e-05" ixz="6.1935945e-05" iyz="-9.7066429e-06" />
+    </inertial>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_001_RaspberryPi5.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_002_520_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_003_520_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_004_control_broad.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_005_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_006_X3_.stp.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_009_battery.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_011_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_012_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_001_RaspberryPi5.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_002_520_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_003_520_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_004_control_broad.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_005_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_006_X3_.stp.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_009_battery.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_011_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.038079715 0.10327397 0.070002196" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_012_part.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_link">
+    <inertial>
+      <origin xyz="9.7537179e-08 4.1996322e-08 -4.8774567e-06" rpy="0 0 0" />
+      <mass value="0.07225202" />
+      <inertia ixx="3.0254025e-05" iyy="3.0264603e-05" izz="5.283939e-05" ixy="3.355744e-09" ixz="2.8399642e-12" iyz="1.6015864e-12" />
+    </inertial>
+    <visual>
+      <origin xyz="0.0270022 -0.057502196 0.022999996" rpy="1.5707963 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_007_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="0.0345" length="0.0265" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_link">
+    <inertial>
+      <origin xyz="-4.8209846e-08 -9.3989017e-08 0.014995121" rpy="0 0 0" />
+      <mass value="0.072252013" />
+      <inertia ixx="3.0255037e-05" iyy="3.0263581e-05" izz="5.2839384e-05" ixy="-4.5783786e-09" ixz="-1.1727931e-12" iyz="-3.0191625e-12" />
+    </inertial>
+    <visual>
+      <origin xyz="0.0270022 0.057502196 -0.17" rpy="-1.5707963 0 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_008_.step.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="0.0345" length="0.0265" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="uni_link">
+    <inertial>
+      <origin xyz="-1.1099766e-10 0 -0.0054999999" rpy="0 0 0" />
+      <mass value="0.0042027826" />
+      <inertia ixx="1.5078014e-07" iyy="1.5078014e-07" izz="1.9724506e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="-0.031667627 0.082002196 -0.10796243" rpy="-1.5707963 0.038450944 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_010_-.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.031667627 0.082002196 -0.10796243" rpy="-1.5707963 0.038450944 0" />
+      <geometry>
+        <mesh filename="package://robot_description/meshes/part_010_-.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <!-- 轮子必须用 continuous: revolute 的 ±2π 限位跑 0.216 m(2πr) 就会卡死,
+       仿真里表现为"走一小段就停". 实车/RViz 不受影响 -->
+  <joint name="left_joint" type="continuous">
+    <origin xyz="0.011077515 0.080273973 0.0125" rpy="-1.5707963 0 0" />
+    <parent link="base_link" />
+    <child link="left_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="10" velocity="30" />
+  </joint>
+  <joint name="right_joint" type="continuous">
+    <origin xyz="0.011077515 -0.066726027 0.0125" rpy="1.5707963 0 0" />
+    <parent link="base_link" />
+    <child link="right_link" />
+    <!-- 右轮坐标系的 x 轴相对 base_link 转了 +90 度(镜像安装),
+         所以它的转轴在自身坐标系里是 -z, 转到 base_link 下才是和左轮一致的 +y.
+         如果这里写成 0 0 1, 差速插件给两轮同样的角速度时轮子会反转,
+         表现为"里程计在前进, 车却在原地打转" -->
+    <axis xyz="0 0 -1" />
+    <limit effort="10" velocity="30" />
+  </joint>
+  <joint name="uni_joint" type="continuous">
+    <origin xyz="0.0655737 -0.0058260145 -0.012" rpy="1.5707963 0 -0.038450944" />
+    <parent link="base_link" />
+    <child link="uni_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="10" velocity="30" />
+  </joint>
+
+  <!-- 地面投影坐标系: 整棵 TF 树的根, 由 odom 作为其父节点(serial_node 发布 odom->base_footprint)
+       约定: base_footprint 在 z=0 的地面上, base_link 在其上方; 两者重合时 origin 取 0 -->
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  
+  <!-- 激光雷达坐标系: 单位 m, x 向前 / y 向左 / z 向上(相对 base_link)
+       实测: 前方 5 cm, 左右居中, 扫描面高 8 cm -->
+  <link name="laser"/>
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser"/>
+    <origin xyz="0.05 0 0.08" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_joint</left_joint>
+      <right_joint>right_joint</right_joint>
+      <wheel_separation>0.147</wheel_separation>
+      <wheel_radius>0.0345</wheel_radius>
+      <!-- 差速插件默认话题带模型名前缀: /model/generated_robot/cmd_vel
+           这里改成固定话题名, 方便 sim_bringup 里的 ros_gz_bridge 一次性桥接 -->
+      <topic>/cmd_vel</topic>
+      <!-- 轮速里程计(会打滑)改到独立话题, 供对比; 真正的 /odom 用下面的真值插件 -->
+      <odom_topic>/odom_wheel</odom_topic>
+      <tf_topic>/tf_wheel</tf_topic>
+      <!-- 里程计的坐标系名. 不写时 Gazebo 会自动加模型名前缀:
+           generated_robot/odom -> generated_robot/base_footprint, nav2 不认这种名字 -->
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <max_linear_velocity>0.5</max_linear_velocity>
+      <min_linear_velocity>-0.5</min_linear_velocity>
+      <max_angular_velocity>1.5</max_angular_velocity>
+      <min_angular_velocity>-1.5</min_angular_velocity>
+      <!-- 加速度限制: 没有它时 /cmd_vel 阶跃会让轮子瞬时打滑,
+           里程计和真实位置越走越偏, SLAM 地图会出现放射状条纹 -->
+      <max_linear_acceleration>0.4</max_linear_acceleration>
+      <min_linear_acceleration>-0.4</min_linear_acceleration>
+      <max_angular_acceleration>1.0</max_angular_acceleration>
+      <min_angular_acceleration>-1.0</min_angular_acceleration>
+    </plugin>
+
+    <!-- 把 Gazebo 里轮子的真实转角发给 ROS, robot_state_publisher 才能让轮子转起来 -->
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <topic>/joint_states</topic>
+    </plugin>
+
+    <!-- 真值里程计: 直接用模型在世界里的位姿, 不积分轮速.
+         顶墙空转时轮速里程计会漂, 这个不会; 仿真建图/导航建议用它.
+         轮速版仍然发布在 /odom_wheel + /tf_wheel, 方便对比"轮速差多少" -->
+    <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <odom_topic>/odom</odom_topic>
+      <tf_topic>/tf</tf_topic>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <dimensions>2</dimensions>
+    </plugin>
+  </gazebo>
+
+  <gazebo reference="left_link">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="right_link">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="uni_link">
+    <mu1>0.01</mu1>
+    <mu2>0.01</mu2>
+  </gazebo>
+
+  <!-- ============ 仿真用激光雷达 (Gazebo Harmonic / gz-sim 8) ============
+       1. 这一段只在 Gazebo 里生效, RViz / 实车不受影响
+       2. 雷达挂在 laser 链接上, 即 base_link 前方 0.05 m / 高 0.08 m
+       3. URDF 里的 fixed joint 会被 sdformat 合并进父链接(base_footprint),
+          所以必须用 <gz_frame_id> 指定消息里的 frame_id, 否则 /scan 的
+          frame_id 会变成 base_footprint, 和 TF 树对不上
+       4. 参数按 YDLidar X3 近似: 360 线, 10 Hz, 0.12 ~ 8 m -->
+  <gazebo reference="laser">
+    <sensor name="lidar" type="gpu_lidar">
+      <topic>/scan</topic>
+      <gz_frame_id>laser</gz_frame_id>
+      <update_rate>10</update_rate>
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.14159265</min_angle>
+            <max_angle>3.14159265</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.12</min>
+          <max>8.0</max>
+          <resolution>0.01</resolution>
+        </range>
+      </lidar>
+    </sensor>
+  </gazebo>
+</robot>
