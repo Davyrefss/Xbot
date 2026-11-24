@@ -10,8 +10,8 @@
 
     # 换地图 / 换世界:
     ros2 launch xbot_nav sim_navigation_launch.py \
-        map:=/home/davyrefss/XBot/xbot_ws/src/xbot_nav/maps/xxx.yaml \
-        world:=/home/davyrefss/XBot/xbot_ws/src/robot_description/worlds/xbot_rooms.world
+        map:=src/xbot_nav/maps/xbot_rooms.yaml \
+        world:=src/xbot_sim/worlds/xbot_rooms.world
 
 启动后:
     RViz 里用 "2D Pose Estimate" 校正初始位姿(默认已按 (0,0) 初始化),
@@ -25,15 +25,13 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
     nav_share = get_package_share_directory('xbot_nav')
-    desc_share = get_package_share_directory('robot_description')
+    sim_share = get_package_share_directory('xbot_sim')
     nav2_share = get_package_share_directory('nav2_bringup')
 
     world = LaunchConfiguration('world')
@@ -46,21 +44,20 @@ def generate_launch_description():
     use_composition = LaunchConfiguration('use_composition')
     rviz_config = LaunchConfiguration('rviz_config')
 
-    # 1. Gazebo 世界 + 机器人 + /scan /odom /tf /clock 桥接
-    #    headless=true 时给 gz sim 加 -s (纯服务端无 GUI)
+    # 仿真底盘和桥接，RViz 使用 Nav2 的视图。
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(desc_share, 'launch', 'simworld_bringup_launch.py')),
+            os.path.join(sim_share, 'launch', 'simworld_bringup_launch.py')),
         launch_arguments={
             'world': world,
             'use_sim_time': use_sim_time,
             'use_rviz': use_rviz,
-            'extra_gz_args': PythonExpression(
-                ["'-s ' if '", headless, "' == 'true' else ''"]),
+            'headless': headless,
+            'rviz_config': rviz_config,
         }.items(),
     )
 
-    # 2. Nav2: map_server + amcl + 规划/控制/行为树 (slam=false 表示用已有地图)
+    # 加载已有地图，用 AMCL 定位并启动导航。
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(nav2_share, 'launch', 'bringup_launch.py')),
@@ -77,21 +74,10 @@ def generate_launch_description():
         }.items(),
     )
 
-    # 3. RViz: 直接用 nav2 自带的默认视图(含 map/costmap/路径/导航按钮)
-    rviz = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        arguments=['-d', rviz_config],
-        parameters=[{'use_sim_time': use_sim_time}],
-        condition=IfCondition(use_rviz),
-        output='screen',
-    )
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'world',
-            default_value=os.path.join(desc_share, 'worlds', 'xbot_rooms.world'),
+            default_value=os.path.join(sim_share, 'worlds', 'xbot_rooms.world'),
             description='Gazebo 世界文件'),
         DeclareLaunchArgument(
             'headless', default_value='false',
@@ -120,5 +106,4 @@ def generate_launch_description():
             description='RViz 配置文件'),
         sim,
         nav2,
-        rviz,
     ])

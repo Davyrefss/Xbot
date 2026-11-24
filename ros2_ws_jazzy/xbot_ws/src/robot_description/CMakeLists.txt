@@ -3,7 +3,8 @@ project(robot_description)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY urdf meshes launch worlds rviz config
-  DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY urdf meshes launch rviz
+  DESTINATION share/${PROJECT_NAME}
+  PATTERN "__pycache__" EXCLUDE)
 
 ament_package()

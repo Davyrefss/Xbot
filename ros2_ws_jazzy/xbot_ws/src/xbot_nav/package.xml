@@ -9,14 +9,13 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_amcl</exec_depend>
   <exec_depend>nav2_map_server</exec_depend>
   <exec_depend>nav2_rviz_plugins</exec_depend>
-  <exec_depend>slam_toolbox</exec_depend>
-  <exec_depend>rviz2</exec_depend>
-  <exec_depend>robot_description</exec_depend>
-  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>xbot_sim</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

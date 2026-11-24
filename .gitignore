@@ -4,3 +4,5 @@
 pcb/
 # ignore vscode settings
 .vscode/
+# Ignore python cache files
+__pycache__/
