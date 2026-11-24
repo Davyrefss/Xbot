@@ -1,0 +1,8 @@
+<library path="xbot_system">
+  <class
+    name="xbot_hardware/XbotSystem"
+    type="xbot_hardware::XbotSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>Four-wheel skid-steer base connected to the Xbot MCU over UART.</description>
+  </class>
+</library>

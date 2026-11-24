@@ -1,4 +1,4 @@
-# XBot---扫地机器人(目前还在基础的开发验证阶段，)
+# Xbot---扫地机器人(目前还在基础的开发验证阶段，)
 
 This repositories was created by Davy Refss and FssTat-re together.
 由 **Davy Refss** 与 **FssTat-re** 共同开发。项目覆盖从嵌入式电机控制、串口通信协议、ROS 2 驱动与里程计，到遥控、激光雷达、SLAM 与 Gazebo 仿真的完整链路。
@@ -12,6 +12,12 @@ This repositories was created by Davy Refss and FssTat-re together.
 ![初步预览](assets/Xbot.jpeg)
 ## 目录结构
 该目录下的文件也在测试!!!
+```
+ros2_ws_jazzy---|
+                |--- rasp_ws  -> simulation
+                |--- xbot_ws  -> prototype (raspberrypi5)
+```
+现在请不要看这个目录结构，我将真机与仿真分开解耦了，重新整理后会再次上传
 ```
 Xbot/
 ├── firmware/

@@ -4,3 +4,5 @@
 pcb/
 # urdf
 urdf/
+# ignore vscode settings
+.vscode/

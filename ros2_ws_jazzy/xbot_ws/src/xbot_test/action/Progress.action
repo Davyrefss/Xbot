@@ -1,0 +1,10 @@
+# Goal
+int64 num
+
+---
+# Result
+int64 sum
+
+---
+# Feedback
+float32 progress

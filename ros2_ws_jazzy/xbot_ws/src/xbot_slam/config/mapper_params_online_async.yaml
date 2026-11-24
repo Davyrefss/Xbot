@@ -1,0 +1,65 @@
+slam_toolbox:
+  ros__parameters:
+  # -->后端:位姿图优化(把关键帧连成图)
+    solver_plugin: solver_plugins::CeresSolver    # 求解器插件
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY   # Ceres 线性方程组解法
+    ceres_preconditioner: SCHUR_JACOBI            # 预条件子
+    ceres_trust_strategy: LEVENBERG_MARQUARDT     # 信赖域策略
+    ceres_dogleg_type: TRADITIONAL_DOGLEG         # trust_strategy 的约束
+    ceres_loss_function: None                     # 鲁棒核，抑制错误回环
+  # -->坐标系话题
+    odom_frame: odom                    # 里程计坐标系
+    map_frame: map                      # 地图坐标系
+    base_frame: base_footprint          # 机器人底盘坐标系
+    scan_topic: /scan                   # 雷达话题
+    use_map_saver: true                 # 提供保存地图的服务
+    mode: mapping                       # 性能优化模式,定位时改成 localization
+  # -->节点行为/地图输出
+    debug_logging: false                # 调试日志
+    throttle_scans: 1                   # 每N帧雷达只处理1帧 (不抽帧)
+    transform_publish_period: 0.02      # map->odom  TF发布周期
+    map_update_interval: 5.0            # 地图更新间隔，(s)
+    resolution: 0.05                    # 栅格分辨率 5cm
+    restamp_tf: false                   # false-> 用时间戳扫描时间，true->用当前时间
+    min_laser_range: 0.0                # 最小激光范围
+    max_laser_range: 8.0                # 最大激光范围 与 YDLidar X3 / 仿真雷达一致；超过雷达量程只会刷 WARN
+    minimum_time_interval: 0.1          # 两次处理扫描的最小时间间隔
+    transform_timeout: 0.2              # 查TF的超时，同时作为map->odom时间戳的“提前量”
+    tf_buffer_duration: 30.0            # TF缓存时间
+    stack_size_to_use: 40000000         # 线程的栈大小--40MB,
+    enable_interactive_mode: true       # Rviz 交互模式(手动调回环)会缓存扫描，占内存
+  # -->前端:扫描匹配+节点创建门槛
+    use_scan_matching: true                       # 用扫描匹配修正里程计
+    use_scan_barycenter: true                     # 用扫描点云重心
+    minimum_travel_distance: 0.5                  # 走够0.5m才把这一帧当作新节点
+    minimum_travel_heading: 0.5                   # 转够0.5m才把这一帧当作新节点
+    check_min_dist_and_heading_precisely: false   # false=用近似判断(距离为主，航向有Kartographer内部再判断)
+    scan_buffer_size: 10                          # 参与匹配的扫描链长度(最近10帧)
+    scan_buffer_maximum_scan_distance: 10.0       # 链里离当前位姿超过10m的旧帧丢掉
+    link_match_minimum_response_fine: 0.1         # 两帧匹配响应超过0.1才建立“链边”
+    link_scan_maximum_distance: 1.5               # 两帧的距离超过1.5m就不建立“链边”
+    loop_search_maximum_distance: 3.0             # 回环候选:当前位姿3m内的历史帧才会被考虑
+    do_loop_closing: true                         # 开回环检测
+    loop_match_minimum_chain_size: 10             # 回环候选必须落在长度>= 10的扫描链上
+    loop_match_maximum_variance_coarse: 3.0       # 粗搜索协方差阈值，越小越严格
+    loop_match_minimum_response_coarse: 0.35      # 粗搜索匹配度超过0.35才进入精确搜索
+    loop_match_minimum_response_fine: 0.45        # 精确匹配搜索度超过0.45才真正闭合回环
+  # 局部扫描匹配的搜索窗口
+    correlation_search_space_dimension: 0.5       # 平移搜索范围0.5*0.5m
+    correlation_search_space_resolution: 0.01     # 搜索格 1cm
+    correlation_search_space_smear_deviation: 0.1 # 响应模糊(多峰平滑)10cm,避免卡在局部阈值
+  # 回环搜索的搜索窗口
+    loop_search_space_dimension: 8.0              # 回环搜索的范围 8cm * 8cm
+    loop_search_space_resolution: 0.05            # 回环粗搜索格 5cm
+    loop_search_space_smear_deviation: 0.03       # 回环响应模糊 3cm
+  # 匹配打分(惩罚项)
+    distance_variance_penalty: 0.5                # 匹配位姿偏离里程计越远，按这个"方差"打折，值越大越容忍偏离
+    angle_variance_penalty: 1.0                   # 同上，针对角度，越大越容忍偏离
+    fine_search_angle_offset: 0.00349             # 精搜索的角度范围+-0.2度
+    coarse_search_angle_offset: 0.349             # 粗搜索的角度范围+-20度
+    coarse_angle_resolution: 0.0349               # 粗搜索的角度步长2度
+    minimum_angle_penalty: 0.9                    # 角度惩罚下限
+    minimum_distance_penalty: 0.5                 # 距离惩罚下限
+    use_response_expansion: true                  # 粗匹配响应度为0时，自动把角度搜索范围再扩大(最多3*20度)
+    min_pass_through: 2                           # 一个栅格至少被3条光束“穿过/命中”过才判定占据或空闲
+    occupancy_threshold: 0.1                      # 命中次数/穿过次数 > 0.1就记为占据
