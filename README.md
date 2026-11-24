@@ -14,8 +14,8 @@ This repositories was created by Davy Refss and FssTat-re together.
 该目录下的文件也在测试!!!
 ```
 ros2_ws_jazzy---|
-                |--- rasp_ws  -> simulation
-                |--- xbot_ws  -> prototype (raspberrypi5)
+                |--- xbot_ws  -> simulation
+                |--- rasp_ws  -> prototype (raspberrypi5)
 ```
 现在请不要看这个目录结构，我将真机与仿真分开解耦了，重新整理后会再次上传
 ```
